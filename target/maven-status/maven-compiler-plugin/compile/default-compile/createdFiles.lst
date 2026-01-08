@@ -2,8 +2,8 @@ pl/pwr/gogame/model/Main.class
 pl/pwr/gogame/model/GamePlayer.class
 pl/pwr/gogame/model/BoardFactory.class
 pl/pwr/gogame/server/ResponseFormatter.class
-pl/pwr/gogame/model/MoveResult.class
 pl/pwr/gogame/model/Move.class
+pl/pwr/gogame/model/MoveResult.class
 pl/pwr/gogame/model/GameEngine.class
 pl/pwr/gogame/model/Position.class
 pl/pwr/gogame/server/ClientHandler.class

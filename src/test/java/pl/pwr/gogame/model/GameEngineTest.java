@@ -1,6 +1,7 @@
 package pl.pwr.gogame.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -139,4 +140,84 @@ public class GameEngineTest {
         // Sprawdzamy, czy tura zmieniła się z powrotem na czarnego gracza
         assertEquals(blackPlayer, gameEngine.getCurrentPlayer());
     }
+
+      @Test
+    void testShouldAllowSuicideMoveBecauseItCaptures() {
+        //   kolumny: 0  1  2
+        // wiersze
+        //    0       B  W  .
+        //    1       W  x  W
+        //    2       B  W  .
+        
+        // Ustawiamy białe kamienie
+        Position whiteToCapture = new Position(0, 1);
+        board.setStone(whiteToCapture, StoneColor.WHITE);
+        board.setStone(new Position(1, 0), StoneColor.WHITE);
+        board.setStone(new Position(1, 2), StoneColor.WHITE);
+        board.setStone(new Position(2, 1), StoneColor.WHITE);
+
+        // Ustawiamy czarne kamienie
+        board.setStone(new Position(0, 0), StoneColor.BLACK);
+        board.setStone(new Position(0, 2), StoneColor.BLACK);
+        
+        assertEquals(blackPlayer, gameEngine.getCurrentPlayer());
+
+        // Wykonujemy ruch na (1,1), który jest samobójczy, ale zbija białego na (0,1)
+        Position movePos = new Position(1, 1);
+        Move move = new Move(movePos, blackPlayer);
+        MoveResult result = gameEngine.applyMove(move);
+
+        // Sprawdzamy, czy ruch został poprawnie ZAAKCEPTOWANY
+        assertTrue(result.isOk(), "Ruch samobójczy, który zbija, powinien być dozwolony");
+        
+        // Sprawdzamy, czy biały kamień na (0,1) został zbity
+        assertEquals(StoneColor.EMPTY, board.getStone(whiteToCapture), "Biały kamień na (0,1) powinien zostać zbity");
+        
+        // Sprawdzamy, czy czarny kamień, który wykonał ruch, stoi na planszy
+        assertEquals(StoneColor.BLACK, board.getStone(movePos), "Kamień na (1,1) powinien stać na planszy");
+        
+        // Sprawdzamy, czy licznik zbić został zaktualizowany
+        assertEquals(1, gameEngine.getBlackCaptures(), "Licznik zbić czarnego gracza powinien wynosić 1");
+    }
+
+     @Test
+    void testShouldPreventGroupSuicideMove() {
+        //   kolumny: 0  1  2
+        //    0       .  W  .
+        //    1       W  B  W
+        //    2       W  x  W
+        //    3       .  W  .
+        Position blackStone = new Position(1, 1);
+        board.setStone(blackStone, StoneColor.BLACK);
+
+        // Otaczamy go i pole 'x' białymi kamieniami
+        board.setStone(new Position(1,0), StoneColor.WHITE);
+        board.setStone(new Position(0, 1), StoneColor.WHITE);
+        board.setStone(new Position(2, 1), StoneColor.WHITE);
+        board.setStone(new Position(2, 2), StoneColor.WHITE);
+        board.setStone(new Position(1, 3), StoneColor.WHITE);
+        board.setStone(new Position(0, 2), StoneColor.WHITE);
+        board.setStone(new Position(0, 1), StoneColor.WHITE); 
+
+
+        board.setStone(new Position(1, 1), StoneColor.BLACK);
+        System.out.println(board);
+        assertEquals(blackPlayer, gameEngine.getCurrentPlayer());
+
+        // wykonujemy ruch samobójczy na pozycji (1,2)
+        Position groupSuicideMovePos = new Position(1, 2);
+        Move suicideMove = new Move(groupSuicideMovePos, blackPlayer);
+        MoveResult result = gameEngine.applyMove(suicideMove);
+
+        assertFalse(result.isOk(), "Ruch samobójczy dla grupy powinien być niedozwolony"); // jesli isOk() zwraca false, to ruch jest niedozwolony
+        assertEquals("Nie można postawić kamienia - samobójstwo", result.getErrorMessage());
+        
+        // Sprawdzamy, czy plansza pozostała niezmieniona
+        assertEquals(StoneColor.EMPTY, board.getStone(groupSuicideMovePos), "Pole ruchu samobójczego powinno pozostać puste");
+        assertEquals(StoneColor.BLACK, board.getStone(blackStone), "Istniejący kamień grupy powinien pozostać na planszy");
+        
+        // Sprawdzamy, czy tura NIE zmieniła się
+        //assertEquals(blackPlayer, gameEngine.getCurrentPlayer(), "Tura powinna pozostać u czarnego gracza");
+    }
+        
 }

@@ -2,13 +2,12 @@
 // Composite, poniewaz sklada sie z wielu komponentow
 package pl.pwr.gogame.model;
 
-import pl.pwr.gogame.server.ClientHandler;
-
-import java.util.Scanner;
-import java.util.concurrent.Executors;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Scanner;
+
+import pl.pwr.gogame.server.ClientHandler;
 
 public class Main {
     public static void main(String[] args) throws IOException {

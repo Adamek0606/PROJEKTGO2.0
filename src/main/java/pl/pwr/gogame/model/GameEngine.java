@@ -5,9 +5,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import pl.pwr.gogame.service.BoardService;
+
 public class GameEngine {
 
     private final Board board;
+    private final BoardService boardService; // Dodano pole dla serwisu
     private GamePlayer blackPlayer;
     private GamePlayer whitePlayer;
     private GamePlayer currentPlayer;
@@ -16,6 +19,7 @@ public class GameEngine {
 
     public GameEngine(Board board) {
         this.board = board;
+        this.boardService = new BoardService(); // Inicjalizacja serwisu
         this.currentPlayer = null;
     }
 
@@ -54,9 +58,9 @@ public class GameEngine {
         List<Position> capturedStones = tryCaptureOpponents(position, moveColor);
 
         if (capturedStones.isEmpty()) {
-            // POPRAWKA: Użycie metod z Board do sprawdzenia samobójstwa
-            List<Position> myGroup = board.getGroup(position, new HashSet<>());
-            if (board.getGroupLiberties(myGroup) == 0) {
+            // Użycie BoardService do sprawdzenia samobójstwa
+            List<Position> myGroup = boardService.getGroup(board, position, new HashSet<>());
+            if (boardService.getGroupLiberties(board, myGroup) == 0) {
                 board.removeStone(position); // Cofnij ruch
                 return MoveResult.error("Nie można postawić kamienia - samobójstwo");
             }
@@ -80,12 +84,13 @@ public class GameEngine {
         StoneColor opponentColor = myColor.other();
         Set<Position> visitedStones = new HashSet<>();
 
-        for (Position neighbor : board.getNeighbors(currentMovePos)) {
+        // Użycie BoardService do pobrania sąsiadów
+        for (Position neighbor : boardService.getNeighbors(board, currentMovePos)) {
             if (board.getStone(neighbor) == opponentColor && !visitedStones.contains(neighbor)) {
-                // POPRAWKA: Użycie nowej metody getGroup i istniejącej getGroupLiberties
-                List<Position> opponentGroup = board.getGroup(neighbor, visitedStones);
+                // Użycie BoardService do znalezienia grupy i obliczenia oddechów
+                List<Position> opponentGroup = boardService.getGroup(board, neighbor, visitedStones);
                 
-                if (board.getGroupLiberties(opponentGroup) == 0) {
+                if (boardService.getGroupLiberties(board, opponentGroup) == 0) {
                     allCapturedStones.addAll(opponentGroup);
                 }
             }

@@ -219,5 +219,50 @@ public class GameEngineTest {
         // Sprawdzamy, czy tura NIE zmieniła się
         //assertEquals(blackPlayer, gameEngine.getCurrentPlayer(), "Tura powinna pozostać u czarnego gracza");
     }
+
+     @Test 
+    void testShouldResign() {
         
+        MoveResult moveResign = gameEngine.resign(blackPlayer);
+        assertEquals(null, gameEngine.getCurrentPlayer());
+        assertEquals(moveResign.isResigned(), true);
+        assertEquals(moveResign.getLoser(), blackPlayer);
+        assertEquals(moveResign.getWinner(), whitePlayer);
+        //sprawdzenie czy nie da się zrobić kolejnych ruchów
+        Position testMovePos = new Position(0,0);
+        Move moveAfterResign = new Move(testMovePos, whitePlayer);
+        MoveResult resultAfterResign = gameEngine.applyMove(moveAfterResign);
+
+        assertFalse(resultAfterResign.isOk(), "Ruch po poddaniu jest niedozwolony");
+
+        MoveResult whiteResign = gameEngine.resign(whitePlayer);
+        assertEquals(whiteResign.isResigned(), true, "Gracz powinien móc się poddać nawet poza swoją turą");
+        assertEquals(whiteResign.getWinner(), blackPlayer);
+    }
+
+     @Test
+    void testShouldPass() {
+
+        MoveResult movePass = gameEngine.pass(blackPlayer);
+
+        assertEquals(whitePlayer, gameEngine.getCurrentPlayer());
+        assertTrue(movePass.isPassed());
+        assertEquals(gameEngine.getLastMoveWasPass(), true);
+        MoveResult moveSecondPass = gameEngine.pass(whitePlayer);
+
+        assertTrue(moveSecondPass.isPassed());
+
+        assertTrue(moveSecondPass.isEnd(), "Drugi pass powinien zakończyć grę");
+        assertFalse(movePass.isResigned(), "Pass nie powinien być rezygnacją");
+        assertFalse(moveSecondPass.isResigned(), "Pass nie powinien być rezygnacją");
+
+        Position testMovePos = new Position(0,0);
+        Move moveAfterResign = new Move(testMovePos, whitePlayer);
+        MoveResult resultAfterResign = gameEngine.applyMove(moveAfterResign);
+        
+        assertFalse(resultAfterResign.isOk(), "Ruch po zrobieniu pass przez obojga graczy jest niedozwolony");
+        assertEquals("Gra została zakończona", resultAfterResign.getErrorMessage());
+    
+        
+    }
 }

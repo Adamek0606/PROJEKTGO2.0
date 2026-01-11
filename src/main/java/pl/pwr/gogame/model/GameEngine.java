@@ -17,6 +17,11 @@ public class GameEngine {
     private int blackCaptures = 0;
     private int whiteCaptures = 0;
 
+    //ten kod do passowania będzie można zamienić po zaimplementowaniu historii ruchów
+    private boolean lastMoveWasPass = false;
+
+    private boolean end = false;
+
     public GameEngine(Board board) {
         this.board = board;
         this.boardService = new BoardService(); // Inicjalizacja serwisu
@@ -38,15 +43,26 @@ public class GameEngine {
     }
 
     public synchronized MoveResult applyMove(Move move) {
+
+         if (end) {
+        return MoveResult.error("Gra została zakończona");
+        }
+
         if (currentPlayer == null) {
             return MoveResult.error("Gracze nie zostali zainicjalizowani!");
         }
 
         Position position = move.getPosition();
         GamePlayer movePlayer = move.getPlayer();
+
+        //jeśli ruch to nie pass to przy następnym sprawdzaniu poprzedni
+        //ruch nie będzie pass
+        lastMoveWasPass = false;
+
         if (!movePlayer.equals(currentPlayer)) {
             return MoveResult.error("Tura przeciwnika");
         }
+        
 
         StoneColor moveColor = movePlayer.getColor();
         String error = validatePreConditions(position, moveColor);
@@ -111,8 +127,48 @@ public class GameEngine {
         }
     }
 
+    public synchronized MoveResult pass(GamePlayer player) {
+        if (!player.equals(currentPlayer)) {
+            return MoveResult.error("Tura przeciwnika");
+        }
+
+         if (lastMoveWasPass) {
+            end = true;
+            return MoveResult.passEnd();
+        } else {
+            lastMoveWasPass = true;
+            changePlayers();
+            return MoveResult.passNext();
+        }
+    }
+
+    public synchronized MoveResult resign(GamePlayer player) {
+
+        //gdybyśmy chcieli możliwość poddania się tylko w swojej turze
+        /*if (!player.equals(currentPlayer)) {
+            return MoveResult.error("Tura przeciwnika");
+
+        }*/
+
+        GamePlayer winner = (player.equals(blackPlayer)) ? whitePlayer : blackPlayer ;
+
+        this.currentPlayer = null;
+
+        return MoveResult.resign(player, winner);
+    }
+
     public GamePlayer getCurrentPlayer() { return currentPlayer; }
+    private GamePlayer getOpponentPlayer(GamePlayer player) {
+    if (player.equals(blackPlayer)) {
+        return whitePlayer;
+    }
+    if (player.equals(whitePlayer)) {
+        return blackPlayer;
+    }
+    throw new IllegalArgumentException("Nieznany gracz");
+}
     public StoneColor getCurrentColor() { return currentPlayer != null ? currentPlayer.getColor() : StoneColor.EMPTY; }
     public int getBlackCaptures() { return blackCaptures; }
     public int getWhiteCaptures() { return whiteCaptures; }
+    public boolean getLastMoveWasPass() { return lastMoveWasPass; }
 }

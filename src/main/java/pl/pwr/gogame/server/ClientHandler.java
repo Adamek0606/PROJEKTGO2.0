@@ -56,6 +56,42 @@ public class ClientHandler implements Runnable {
 
     private void handleCommand(String command) {
         try {
+            // 0.1 Jak rezygnacja to nie parsujemy dalej
+            command = command.trim().toLowerCase();
+
+            if (command.equals("resign")) {
+                MoveResult result = engine.resign(player);
+
+                send("Koniec gry. Poddałeś się.");
+
+                if ( opponent != null) {
+                    opponent.send("Koniec gry. Przeciwnik się poddał. Wygrałeś.");
+
+                }
+                //po rezygnacji przestajemy czytać kolejne ruchy
+                return; 
+
+            // 0.2 Jak pass to pomijamy turę
+            } else if (command.equals("pass")) {
+
+                MoveResult result = engine.pass(player);
+
+                send("Pass.");
+                    if ( opponent != null) {
+                    opponent.send("Przeciwnik zrobił pass.");
+                    }
+
+                if (result.isEnd()) {
+                    send("Oboje gracze zrobili pass.");
+
+                    if (opponent != null) {
+                        opponent.send("Oboje gracze zrobili pass.");
+                        }
+                }
+
+
+            }
+
             // 1. Delegacja do CommandParser
             Move move = CommandParser.parseMove(command, this.player);
 
@@ -103,6 +139,7 @@ public class ClientHandler implements Runnable {
             opponent.send("Przeciwnik rozłączył się. Koniec gry.");
         }
     }
+
 
     public void setOpponent(ClientHandler opponent) {
         this.opponent = opponent;

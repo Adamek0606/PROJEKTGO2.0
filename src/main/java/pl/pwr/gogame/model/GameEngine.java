@@ -17,6 +17,10 @@ public class GameEngine {
     private int blackCaptures = 0;
     private int whiteCaptures = 0;
 
+    //potrzebne do sprawdzania ko
+    private String previousBoardSnapshot;
+    private boolean singleCaptureOnLastMove;
+
     //ten kod do passowania będzie można zamienić po zaimplementowaniu historii ruchów
     private boolean lastMoveWasPass = false;
 
@@ -52,12 +56,15 @@ public class GameEngine {
             return MoveResult.error("Gracze nie zostali zainicjalizowani!");
         }
 
+
         Position position = move.getPosition();
         GamePlayer movePlayer = move.getPlayer();
 
         //jeśli ruch to nie pass to przy następnym sprawdzaniu poprzedni
         //ruch nie będzie pass
         lastMoveWasPass = false;
+
+       
 
         if (!movePlayer.equals(currentPlayer)) {
             return MoveResult.error("Tura przeciwnika");
@@ -70,8 +77,17 @@ public class GameEngine {
             return MoveResult.error(error);
         }
 
+         //stan planszy przed wykonaniem ruchu w celu sprawdzenia ko
+        String previousBoardState = board.toString();
+
         board.setStone(position, moveColor);
         List<Position> capturedStones = tryCaptureOpponents(position, moveColor);
+
+        //ko może zajść tylko wtedy, gdy gracz przejmuje tylko jeden kamień
+        boolean singleCapture = false;
+        if (capturedStones.size() == 1) {
+            singleCapture = true;
+        }
 
         if (capturedStones.isEmpty()) {
             // Użycie BoardService do sprawdzenia samobójstwa
@@ -81,6 +97,20 @@ public class GameEngine {
                 return MoveResult.error("Nie można postawić kamienia - samobójstwo");
             }
         }
+
+        if (singleCapture && singleCaptureOnLastMove) {
+            String newBoardState = board.toString();
+
+            if(newBoardState.equals(previousBoardSnapshot)) {
+                //ponieważ sprawdzamy czy zaszło ko po wykonaniu ruchu,
+                //jeśli zaszło należy cofnąć ten ruch
+                rollbackMove(position, capturedStones, moveColor);
+                return MoveResult.error("Zaszło ko- ruch nieprawidłowy");
+            }
+        }
+
+        previousBoardSnapshot = previousBoardState;
+        singleCaptureOnLastMove = singleCapture;
 
         updateCaptureCounts(moveColor, capturedStones.size());
         changePlayers();
@@ -132,6 +162,10 @@ public class GameEngine {
             return MoveResult.error("Tura przeciwnika");
         }
 
+        //przy passowaniu ko resetuje się
+        singleCaptureOnLastMove = false;
+        previousBoardSnapshot = null;
+
          if (lastMoveWasPass) {
             end = true;
             return MoveResult.passEnd();
@@ -167,6 +201,17 @@ public class GameEngine {
     }
     throw new IllegalArgumentException("Nieznany gracz");
 }
+
+    //funkcja do cofania ruchu- usuwa postawiony kamień i przywraca złapane kamienie
+    private void rollbackMove(Position placed, List<Position> captured, StoneColor color) {
+        board.removeStone(placed);
+        for (Position p : captured) {
+            board.setStone(p, color.other());
+        }
+
+    }
+
+
     public StoneColor getCurrentColor() { return currentPlayer != null ? currentPlayer.getColor() : StoneColor.EMPTY; }
     public int getBlackCaptures() { return blackCaptures; }
     public int getWhiteCaptures() { return whiteCaptures; }

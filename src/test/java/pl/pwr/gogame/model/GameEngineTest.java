@@ -3,8 +3,15 @@ package pl.pwr.gogame.model;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import pl.pwr.gogame.service.BoardService;
 
 public class GameEngineTest {
 
@@ -12,6 +19,7 @@ public class GameEngineTest {
     private GameEngine gameEngine;
     private GamePlayer blackPlayer;
     private GamePlayer whitePlayer;
+
 
     @BeforeEach
     void setUp() {
@@ -264,5 +272,125 @@ public class GameEngineTest {
         assertEquals("Gra została zakończona", resultAfterResign.getErrorMessage());
     
         
+    }
+     @Test
+    void testShouldPreventKo() {
+        //ustawiamy planszę na pozycji do ko- czarne "kółko" i prawie skończone białe "kółko"
+        //  0 1 2 3
+        //1   c b
+        //2 c . c b
+        //3   c b
+        //
+
+        board.setStone(new Position(1,1), StoneColor.BLACK);
+        board.setStone(new Position(2, 1), StoneColor.WHITE);
+        board.setStone(new Position(0, 2), StoneColor.BLACK);
+        board.setStone(new Position(3, 2), StoneColor.WHITE);
+        board.setStone(new Position(1, 3), StoneColor.BLACK);
+        board.setStone(new Position(2, 3), StoneColor.WHITE);
+        board.setStone(new Position(2, 2), StoneColor.BLACK);
+        
+        gameEngine.changePlayers();
+        assertEquals(whitePlayer, gameEngine.getCurrentPlayer());
+        //przejmujemy 
+        Position capturePosition = new Position(1, 2);
+        Move captureMove = new Move(capturePosition, whitePlayer);
+        MoveResult captureResult = gameEngine.applyMove(captureMove);
+        
+        assertTrue(captureResult.isOk());
+
+        Position recapturePosition = new Position(2, 2);
+        Move recaptureMove = new Move(recapturePosition, blackPlayer);
+        MoveResult blackRecapture = gameEngine.applyMove(recaptureMove);
+        assertFalse(blackRecapture.isOk());
+        assertEquals("Zaszło ko- ruch nieprawidłowy", blackRecapture.getErrorMessage());
+
+
+    }
+
+     @Test
+    void testShouldFindSingleEmptyRegion() {
+        //w tym teście uruchamiamy findemptyregion na pustej planszy i sprawdzamy
+        //czy otrzymaliśmy całą planszę
+
+        BoardService service = new BoardService();
+        Set<Position> visited = new HashSet<>();
+
+        List<Position> region = service.getEmptyRegion(board, new Position(1, 1), visited);
+        assertEquals(81, region.size(), "Cała plansza powinna być pustym terytorium");
+    }
+
+
+@Test
+void testShouldFindEnclosedEmptyRegion() {
+    //ten test pozwala sprawdzić, czy poprawnie liczony jest pusty region,
+    //gdy jest w całości otoczony kamieniami
+    //   0 1 2 3 4
+    // 0 . B B B .
+    // 1 B . . . B
+    // 2 B . . . B
+    // 3 B . . . B
+    // 4 . B B B .
+
+    BoardService service = new BoardService();
+
+    // otaczamy 
+    for (int i = 1; i <= 3; i++) {
+        board.setStone(new Position(i, 0), StoneColor.BLACK);
+        board.setStone(new Position(i, 4), StoneColor.BLACK);
+        board.setStone(new Position(0, i), StoneColor.BLACK);
+        board.setStone(new Position(4, i), StoneColor.BLACK);
+    }
+
+    Set<Position> visited = new HashSet<>();
+    List<Position> region = service.getEmptyRegion(
+            board,
+            new Position(2, 2),
+            visited
+    );
+
+    assertEquals(9, region.size(), "Środkowy region powinien mieć 9 pól");
+
+    assertTrue(region.contains(new Position(1, 1)));
+    assertTrue(region.contains(new Position(3, 3)));
+    }
+
+    @Test
+void testShouldDetectSeparateEmptyRegions() {
+    //Liczenie pustego regionu powinno również działać dla dwóch oddzielonych
+    //od siebie regionów
+    // . . c . . . . . .
+    // . . c . . . . . .
+    // . . c . . . . . .
+    // . . c . . . . . .
+    // . . c . . . . . .
+    // . . c . . . . . .
+    // . . c . . . . . .
+    // . . c . . . . . .
+    // . . c . . . . . .
+
+    
+    BoardService service = new BoardService();
+
+    for (int y = 0; y < 9; y++) {
+        board.setStone(new Position(2, y), StoneColor.BLACK);
+    }
+
+    Set<Position> visited = new HashSet<>();
+
+    List<Position> leftRegion = service.getEmptyRegion(
+            board,
+            new Position(0, 1),
+            visited
+    );
+
+    List<Position> rightRegion = service.getEmptyRegion(
+            board,
+            new Position(4, 1),
+            visited
+    );
+
+    assertEquals(18, leftRegion.size());
+    assertEquals(54, rightRegion.size());
     }
 }

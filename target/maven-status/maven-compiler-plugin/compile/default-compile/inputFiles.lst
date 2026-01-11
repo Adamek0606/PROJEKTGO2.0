@@ -4,6 +4,7 @@
 /home/adam/studia/techonologia/PROJEKTGO2.0/src/main/java/pl/pwr/gogame/model/Position.java
 /home/adam/studia/techonologia/PROJEKTGO2.0/src/main/java/pl/pwr/gogame/model/Main.java
 /home/adam/studia/techonologia/PROJEKTGO2.0/src/main/java/pl/pwr/gogame/server/CommandParser.java
+/home/adam/studia/techonologia/PROJEKTGO2.0/src/main/java/pl/pwr/gogame/model/BoardRegion.java
 /home/adam/studia/techonologia/PROJEKTGO2.0/src/main/java/pl/pwr/gogame/model/BoardFactory.java
 /home/adam/studia/techonologia/PROJEKTGO2.0/src/main/java/pl/pwr/gogame/model/MoveResult.java
 /home/adam/studia/techonologia/PROJEKTGO2.0/src/main/java/pl/pwr/gogame/model/Board.java

@@ -2,8 +2,8 @@ package pl.pwr.gogame.server;
 // Formatuje odpowiedzi serwera gry Go dla klienta
 // Wzorzec: Adapter
 import pl.pwr.gogame.model.Board;
-import pl.pwr.gogame.model.MoveResult;
 import pl.pwr.gogame.model.GamePlayer;
+import pl.pwr.gogame.model.MoveResult;
 import pl.pwr.gogame.model.StoneColor;
 
 public class ResponseFormatter {
@@ -13,6 +13,7 @@ public class ResponseFormatter {
         sb.append("Aktualna plansza:").append(System.lineSeparator());
         sb.append(board.toString()).append(System.lineSeparator());
         sb.append("Uzycie: i j - np. '2 3' ustawi kamien na kolumnie 2, wierszu 3.");
+        sb.append("Dostępne komendy: 'pass' (pas), 'resign' (poddanie się).");
         return sb.toString();
     }
 

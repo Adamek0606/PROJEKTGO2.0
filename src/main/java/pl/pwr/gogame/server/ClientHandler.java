@@ -1,16 +1,16 @@
 // sluzy do obslugi klienta w serwerze gry Go
 package pl.pwr.gogame.server;
 
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.net.Socket;
+import java.util.Scanner;
+
 import pl.pwr.gogame.model.Board;
 import pl.pwr.gogame.model.GameEngine;
 import pl.pwr.gogame.model.GamePlayer;
 import pl.pwr.gogame.model.Move;
 import pl.pwr.gogame.model.MoveResult;
-
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.net.Socket;
-import java.util.Scanner;
 
 public class ClientHandler implements Runnable {
     private final Socket socket;
@@ -56,55 +56,46 @@ public class ClientHandler implements Runnable {
 
     private void handleCommand(String command) {
         try {
-            // 0.1 Jak rezygnacja to nie parsujemy dalej
             command = command.trim().toLowerCase();
 
+            // Obsługa rezygnacji
             if (command.equals("resign")) {
-                MoveResult result = engine.resign(player);
-
+                engine.resign(player);
                 send("Koniec gry. Poddałeś się.");
-
-                if ( opponent != null) {
+                if (opponent != null) {
                     opponent.send("Koniec gry. Przeciwnik się poddał. Wygrałeś.");
-
                 }
-                //po rezygnacji przestajemy czytać kolejne ruchy
-                return; 
-
-            // 0.2 Jak pass to pomijamy turę
-            } else if (command.equals("pass")) {
-
+                return; // Zakończ obsługę komendy
+            }
+            
+            // Obsługa pasowania (akceptuje "pass" i "pas")
+            if (command.equals("pass") || command.equals("pas")) {
                 MoveResult result = engine.pass(player);
-
-                send("Pass.");
-                    if ( opponent != null) {
-                    opponent.send("Przeciwnik zrobił pass.");
-                    }
-
-                if (result.isEnd()) {
-                    send("Oboje gracze zrobili pass.");
-
-                    if (opponent != null) {
-                        opponent.send("Oboje gracze zrobili pass.");
-                        }
+                send("Pasujesz.");
+                if (opponent != null) {
+                    opponent.send("Przeciwnik spasował.");
                 }
-
-
+                if (result.isEnd()) {
+                    String endMsg = "Oboje gracze spasowali. Koniec gry.";
+                    send(endMsg);
+                    if (opponent != null) {
+                        opponent.send(endMsg);
+                    }
+                } else {
+                    // Jeśli gra się nie skończyła, powiadom graczy o zmianie tury
+                    notifyPlayers();
+                }
+                return; // Zakończ obsługę komendy
             }
 
-            // 1. Delegacja do CommandParser
+            // Parsowanie i wykonanie ruchu
             Move move = CommandParser.parseMove(command, this.player);
-
-            // 2. Wykonanie logiki na silniku
             MoveResult result = engine.applyMove(move);
-
-            // 3. Delegacja do ResponseFormatter
             send(ResponseFormatter.formatMoveResult(result));
-
+            
             if (result.isOk()) {
                 notifyPlayers();
             }
-
         } catch (IllegalArgumentException e) {
             send("BŁĄD WEJŚCIA: " + e.getMessage());
         }

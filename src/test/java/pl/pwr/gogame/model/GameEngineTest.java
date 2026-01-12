@@ -1,13 +1,12 @@
 package pl.pwr.gogame.model;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -47,12 +46,12 @@ public class GameEngineTest {
         assertEquals(StoneColor.WHITE, board.getStone(whiteStonePos));
         assertEquals(0, gameEngine.getBlackCaptures());
 
-        // ACT - Wykonujemy ruch zbijający, zamykając kwadrat
+        // wykonujemy ruch zbijający, zamykając kwadrat
         Position capturingMovePos = new Position(1, 2); // Prawo
         Move capturingMove = new Move(capturingMovePos, blackPlayer);
         MoveResult result = gameEngine.applyMove(capturingMove);
 
-        // ASSERT - Sprawdzamy, czy stan po ruchu jest prawidłowy
+        // Sprawdzamy, czy stan po ruchu jest prawidłowy
         assertTrue(result.isOk(), "Ruch zbijający powinien być prawidłowy");
         
         // Sprawdzamy, czy biały kamień został zbity (pole jest teraz puste)
@@ -69,7 +68,7 @@ public class GameEngineTest {
     }
      @Test
     void testShouldCaptureFourStoneGroup() {
-        // ARRANGE - Ustawiamy scenariusz na planszy
+        // Ustawiamy scenariusz na planszy
         // Tworzymy grupę czterech czarnych kamieni w kwadracie 2x2
         Position blackStone1 = new Position(1, 1);
         Position blackStone2 = new Position(1, 2);
@@ -130,12 +129,12 @@ public class GameEngineTest {
         gameEngine.changePlayers();
         assertEquals(whitePlayer, gameEngine.getCurrentPlayer());
 
-        // ACT - Wykonujemy ruch zbijający na ostatnim oddechu
+        // Wykonujemy ruch zbijający na ostatnim oddechu
         Position capturingMovePos = new Position(2, 0);
         Move capturingMove = new Move(capturingMovePos, whitePlayer);
         MoveResult result = gameEngine.applyMove(capturingMove);
 
-        // ASSERT - Sprawdzamy, czy stan po ruchu jest prawidłowy
+        // Sprawdzamy, czy stan po ruchu jest prawidłowy
         assertTrue(result.isOk(), "Ruch zbijający grupę przy ścianie powinien być prawidłowy");
 
         // Sprawdzamy, czy oba czarne kamienie zostały zbite
@@ -392,5 +391,43 @@ void testShouldDetectSeparateEmptyRegions() {
 
     assertEquals(18, leftRegion.size());
     assertEquals(54, rightRegion.size());
+    }
+   @Test
+    void testShouldCalculateScoresCorrectlyOn9x9Board() {
+        // Ustawiamy scenariusz zakończonej gry na planszy 9x9
+        
+        // Terytorium czarnego w lewym górnym rogu (2x2 = 4 punkty)
+        // Otaczamy obszar od (0,0) do (1,1)
+        board.setStone(new Position(0, 2), StoneColor.BLACK);
+        board.setStone(new Position(1, 2), StoneColor.BLACK);
+        board.setStone(new Position(2, 2), StoneColor.BLACK);
+        board.setStone(new Position(2, 1), StoneColor.BLACK);
+        board.setStone(new Position(2, 0), StoneColor.BLACK);
+
+        // Terytorium białego w prawym dolnym rogu (1 punkt)
+        // Otaczamy pole (8,8)
+        board.setStone(new Position(7, 8), StoneColor.WHITE);
+        board.setStone(new Position(8, 7), StoneColor.WHITE);
+
+        // Symulujemy, że w trakcie gry gracze zdobyli jeńców
+        gameEngine.updateCaptureCounts(StoneColor.BLACK, 3); // Czarny zbił 3 kamienie
+        gameEngine.updateCaptureCounts(StoneColor.WHITE, 5); // Biały zbił 5 kamieni
+
+        // Wypisanie planszy do konsoli w celu weryfikacji wizualnej
+        System.out.println("--- Plansza 9x9 do liczenia punktów ---");
+        System.out.println(board);
+
+        // Wywołujemy metodę liczenia punktów
+        ScoreResult scores = gameEngine.calculateScores();
+
+        // ASSERT - Sprawdzamy, czy wyniki są zgodne z oczekiwaniami
+        // Wynik czarnego = 4 (terytorium) + 3 (zbicia) = 7
+        // Wynik białego = 1 (terytorium) + 5 (zbicia) = 6
+        
+        assertEquals(7, scores.getBlackScore(), "Wynik czarnego powinien wynosić 7");
+        assertEquals(6, scores.getWhiteScore(), "Wynik białego powinien wynosić 6");
+        
+        // Sprawdzamy, czy zwycięzca został poprawnie określony
+        assertEquals(blackPlayer, scores.getWinner(), "Zwycięzcą powinien być czarny gracz");
     }
 }

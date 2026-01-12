@@ -1,12 +1,17 @@
 // glowny plik uruchomieniowy serwera gry Go
 // Composite, poniewaz sklada sie z wielu komponentow
-package pl.pwr.gogame.model;
+package pl.pwr.gogame.service;
 
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Scanner;
 
+import pl.pwr.gogame.model.Board; 
+import pl.pwr.gogame.model.BoardFactory;
+import pl.pwr.gogame.model.GameEngine;
+import pl.pwr.gogame.model.GamePlayer;
+import pl.pwr.gogame.model.StoneColor;
 import pl.pwr.gogame.server.ClientHandler;
 
 public class Main {

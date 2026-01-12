@@ -119,7 +119,7 @@ public class BoardService {
         return floodFill(board, start, StoneColor.EMPTY, visited);
     }
     /**
-     * Oblicza liczbę oddechów dla całej grupy kamieni. (Istniejąca metoda)
+     * Oblicza liczbę oddechów dla całej grupy kamieni. 
      */
     public int getGroupLiberties(Board board, List<Position> group) {
         Set<Position> liberties = new HashSet<>();

@@ -11,6 +11,7 @@ import pl.pwr.gogame.model.GameEngine;
 import pl.pwr.gogame.model.GamePlayer;
 import pl.pwr.gogame.model.Move;
 import pl.pwr.gogame.model.MoveResult;
+import pl.pwr.gogame.model.ScoreResult;
 
 public class ClientHandler implements Runnable {
     private final Socket socket;
@@ -68,25 +69,27 @@ public class ClientHandler implements Runnable {
                 return; // Zakończ obsługę komendy
             }
             
-            // Obsługa pasowania (akceptuje "pass" i "pas")
-            if (command.equals("pass") || command.equals("pas")) {
-                MoveResult result = engine.pass(player);
-                send("Pasujesz.");
-                if (opponent != null) {
-                    opponent.send("Przeciwnik spasował.");
-                }
-                if (result.isEnd()) {
-                    String endMsg = "Oboje gracze spasowali. Koniec gry.";
-                    send(endMsg);
-                    if (opponent != null) {
-                        opponent.send(endMsg);
-                    }
-                } else {
-                    // Jeśli gra się nie skończyła, powiadom graczy o zmianie tury
-                    notifyPlayers();
-                }
-                return; // Zakończ obsługę komendy
+             if (command.equals("pass") || command.equals("pas")) {
+            MoveResult result = engine.pass(player);
+            send("Pasujesz.");
+            if (opponent != null) {
+                opponent.send("Przeciwnik spasował.");
             }
+            
+            if (result.isEnd()) {
+                // Oboje gracze spasowali - KONIEC GRY I LICZENIE PUNKTÓW
+                ScoreResult scores = engine.calculateScores();
+                String scoreMessage = ResponseFormatter.formatScores(scores);
+                
+                send(scoreMessage);
+                if (opponent != null) {
+                    opponent.send(scoreMessage);
+                }
+            } else {
+                notifyPlayers();
+            }
+            return;
+        }
 
             // Parsowanie i wykonanie ruchu
             Move move = CommandParser.parseMove(command, this.player);

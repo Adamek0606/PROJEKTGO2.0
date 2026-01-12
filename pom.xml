@@ -42,7 +42,7 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.0.0</version>
                 <configuration>
-                    <mainClass>pl.pwr.gogame.model.Main</mainClass>
+                    <mainClass>pl.pwr.gogame.service.Main</mainClass>
                 </configuration>
             </plugin>
         </plugins>

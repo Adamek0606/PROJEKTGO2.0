@@ -216,4 +216,49 @@ public class GameEngine {
     public int getBlackCaptures() { return blackCaptures; }
     public int getWhiteCaptures() { return whiteCaptures; }
     public boolean getLastMoveWasPass() { return lastMoveWasPass; }
+
+    public ScoreResult calculateScores() {
+    int blackTerritory = 0;
+    int whiteTerritory = 0;
+
+    Set<Position> visited = new HashSet<>();
+    int boardSize = board.getSize();
+
+    // Przechodzimy przez całą planszę, aby znaleźć puste regiony
+    for (int r = 0; r < boardSize; r++) {
+        for (int c = 0; c < boardSize; c++) {
+            Position currentPos = new Position(c, r);
+            if (board.isEmpty(currentPos) && !visited.contains(currentPos)) {
+                // Znajdź cały pusty region
+                List<Position> region = boardService.getEmptyRegion(board, currentPos, visited);
+                
+                // Sprawdź, jakie kolory otaczają ten region
+                Set<StoneColor> borderingColors = boardService.getBorderingColors(board, region);
+
+                // Jeśli region jest otoczony tylko przez jeden kolor, należy do tego gracza
+                if (borderingColors.size() == 1) {
+                    if (borderingColors.contains(StoneColor.BLACK)) {
+                        blackTerritory += region.size();
+                    } else if (borderingColors.contains(StoneColor.WHITE)) {
+                        whiteTerritory += region.size();
+                    }
+                }
+                // Jeśli region jest otoczony przez oba kolory lub żaden, jest neutralny (dame)
+            }
+        }
+    }
+
+    // Końcowy wynik = terytorium + zbite kamienie
+    int finalBlackScore = blackTerritory + getBlackCaptures();
+    int finalWhiteScore = whiteTerritory + getWhiteCaptures();
+
+    GamePlayer winner = (finalBlackScore > finalWhiteScore) ? blackPlayer : whitePlayer;
+    
+    // Obsługa remisu - w Go rzadkie, ale możliwe. Można tu zaimplementować komi.
+    if (finalBlackScore == finalWhiteScore) {
+        winner = null; // Remis
+    }
+
+    return new ScoreResult(finalBlackScore, finalWhiteScore, winner);
+}
 }

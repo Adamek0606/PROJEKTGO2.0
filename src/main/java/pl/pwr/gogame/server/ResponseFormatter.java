@@ -4,7 +4,9 @@ package pl.pwr.gogame.server;
 import pl.pwr.gogame.model.Board;
 import pl.pwr.gogame.model.GamePlayer;
 import pl.pwr.gogame.model.MoveResult;
+import pl.pwr.gogame.model.ScoreResult;
 import pl.pwr.gogame.model.StoneColor;
+
 
 public class ResponseFormatter {
 
@@ -32,4 +34,18 @@ public class ResponseFormatter {
         String name = (nextPlayer != null) ? nextPlayer.getName() : "(brak)";
         return "Tura: " + name + " (" + nextColor + ")";
     }
+    public static String formatScores(ScoreResult scores) {
+    StringBuilder sb = new StringBuilder();
+    sb.append("KONIEC GRY - PODSUMOWANIE:").append(System.lineSeparator());
+    sb.append("Wynik czarnego: ").append(scores.getBlackScore()).append(" punktów.").append(System.lineSeparator());
+    sb.append("Wynik białego: ").append(scores.getWhiteScore()).append(" punktów.").append(System.lineSeparator());
+
+    GamePlayer winner = scores.getWinner();
+    if (winner != null) {
+        sb.append("Wygrywa: ").append(winner.getName()).append(" (").append(winner.getColor()).append(")");
+    } else {
+        sb.append("Remis!");
+    }
+    return sb.toString();
+}
 }

@@ -3,10 +3,11 @@ pl/pwr/gogame/model/MoveResult.class
 pl/pwr/gogame/model/BoardRegion.class
 pl/pwr/gogame/model/GameEngine.class
 pl/pwr/gogame/server/ClientHandler.class
-pl/pwr/gogame/model/Main.class
+pl/pwr/gogame/model/ScoreResult.class
 pl/pwr/gogame/model/GamePlayer.class
 pl/pwr/gogame/service/BoardService.class
 pl/pwr/gogame/model/BoardFactory.class
+pl/pwr/gogame/service/Main.class
 pl/pwr/gogame/model/Move.class
 pl/pwr/gogame/model/Position.class
 pl/pwr/gogame/server/CommandParser.class

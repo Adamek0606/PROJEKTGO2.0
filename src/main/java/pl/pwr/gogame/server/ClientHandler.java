@@ -68,9 +68,12 @@ public class ClientHandler implements Runnable {
                 if (opponent != null) {
                     opponent.sendResign(resignResult);
                 }
-                return; // Zakończ obsługę komendy
+             closeConnection();
+                if (opponent != null) {
+                    opponent.closeConnection();
+                }
+                return;
             }
-            
              if (command.equalsIgnoreCase("pass") || command.equals("pas")) {
             MoveResult result = engine.pass(player);
             
@@ -174,6 +177,16 @@ public class ClientHandler implements Runnable {
     /** Wysyłanie tekstu do GUI lub terminala */
     private void sendText(String message) {
         send("TEXT " + message);
+    }
+    
+    public void closeConnection() {
+        try {
+            if (!socket.isClosed()) {
+                socket.close();
+            }
+        } catch (IOException e) {
+            System.err.println("Błąd podczas zamykania połączenia: " + e.getMessage());
+        }
     }
     
     private void handleDisconnect() {

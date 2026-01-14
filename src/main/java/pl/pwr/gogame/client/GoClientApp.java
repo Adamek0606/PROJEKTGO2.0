@@ -19,8 +19,6 @@ public void start(Stage stage) {
     stage.setTitle("Go Game");
     stage.setScene(scene);
     stage.show();
-
-    view.getInputField().requestFocus();
 }
 
         

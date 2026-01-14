@@ -25,12 +25,12 @@ public class GameController {
 
 
         });
+         view.getPassButton().setOnAction(e -> {
+            client.send("PASS");
+        });
 
-        view.getInputField().setOnAction(e -> {
-            client.send(view.getInputField().getText());
-            view.getInputField().clear();
+        view.getResignButton().setOnAction(e -> {
+            client.send("RESIGN");
         });
     }
-
-    
 }

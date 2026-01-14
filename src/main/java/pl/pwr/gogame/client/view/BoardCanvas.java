@@ -1,12 +1,12 @@
 package pl.pwr.gogame.client.view;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
 import pl.pwr.gogame.model.StoneColor;
-
-import java.util.HashMap;
-import java.util.Map;
 //klasa Canvas daje nam obraz na którym można rysować za pomocą
 //różnych dostępnych metod
 public class BoardCanvas extends Canvas {

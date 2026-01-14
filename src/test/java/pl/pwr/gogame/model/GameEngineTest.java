@@ -1,10 +1,16 @@
 package pl.pwr.gogame.model;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import pl.pwr.gogame.service.BoardService;
 
 public class GameEngineTest {
 
@@ -12,6 +18,7 @@ public class GameEngineTest {
     private GameEngine gameEngine;
     private GamePlayer blackPlayer;
     private GamePlayer whitePlayer;
+
 
     @BeforeEach
     void setUp() {
@@ -39,12 +46,12 @@ public class GameEngineTest {
         assertEquals(StoneColor.WHITE, board.getStone(whiteStonePos));
         assertEquals(0, gameEngine.getBlackCaptures());
 
-        // ACT - Wykonujemy ruch zbijający, zamykając kwadrat
+        // wykonujemy ruch zbijający, zamykając kwadrat
         Position capturingMovePos = new Position(1, 2); // Prawo
         Move capturingMove = new Move(capturingMovePos, blackPlayer);
         MoveResult result = gameEngine.applyMove(capturingMove);
 
-        // ASSERT - Sprawdzamy, czy stan po ruchu jest prawidłowy
+        // Sprawdzamy, czy stan po ruchu jest prawidłowy
         assertTrue(result.isOk(), "Ruch zbijający powinien być prawidłowy");
         
         // Sprawdzamy, czy biały kamień został zbity (pole jest teraz puste)
@@ -61,7 +68,7 @@ public class GameEngineTest {
     }
      @Test
     void testShouldCaptureFourStoneGroup() {
-        // ARRANGE - Ustawiamy scenariusz na planszy
+        // Ustawiamy scenariusz na planszy
         // Tworzymy grupę czterech czarnych kamieni w kwadracie 2x2
         Position blackStone1 = new Position(1, 1);
         Position blackStone2 = new Position(1, 2);
@@ -122,12 +129,12 @@ public class GameEngineTest {
         gameEngine.changePlayers();
         assertEquals(whitePlayer, gameEngine.getCurrentPlayer());
 
-        // ACT - Wykonujemy ruch zbijający na ostatnim oddechu
+        // Wykonujemy ruch zbijający na ostatnim oddechu
         Position capturingMovePos = new Position(2, 0);
         Move capturingMove = new Move(capturingMovePos, whitePlayer);
         MoveResult result = gameEngine.applyMove(capturingMove);
 
-        // ASSERT - Sprawdzamy, czy stan po ruchu jest prawidłowy
+        // Sprawdzamy, czy stan po ruchu jest prawidłowy
         assertTrue(result.isOk(), "Ruch zbijający grupę przy ścianie powinien być prawidłowy");
 
         // Sprawdzamy, czy oba czarne kamienie zostały zbite
@@ -219,5 +226,208 @@ public class GameEngineTest {
         // Sprawdzamy, czy tura NIE zmieniła się
         //assertEquals(blackPlayer, gameEngine.getCurrentPlayer(), "Tura powinna pozostać u czarnego gracza");
     }
+
+     @Test 
+    void testShouldResign() {
         
+        MoveResult moveResign = gameEngine.resign(blackPlayer);
+        assertEquals(null, gameEngine.getCurrentPlayer());
+        assertEquals(moveResign.isResigned(), true);
+        assertEquals(moveResign.getLoser(), blackPlayer);
+        assertEquals(moveResign.getWinner(), whitePlayer);
+        //sprawdzenie czy nie da się zrobić kolejnych ruchów
+        Position testMovePos = new Position(0,0);
+        Move moveAfterResign = new Move(testMovePos, whitePlayer);
+        MoveResult resultAfterResign = gameEngine.applyMove(moveAfterResign);
+
+        assertFalse(resultAfterResign.isOk(), "Ruch po poddaniu jest niedozwolony");
+
+        MoveResult whiteResign = gameEngine.resign(whitePlayer);
+        assertEquals(whiteResign.isResigned(), true, "Gracz powinien móc się poddać nawet poza swoją turą");
+        assertEquals(whiteResign.getWinner(), blackPlayer);
+    }
+
+     @Test
+    void testShouldPass() {
+
+        MoveResult movePass = gameEngine.pass(blackPlayer);
+
+        assertEquals(whitePlayer, gameEngine.getCurrentPlayer());
+        assertTrue(movePass.isPassed());
+        assertEquals(gameEngine.getLastMoveWasPass(), true);
+        MoveResult moveSecondPass = gameEngine.pass(whitePlayer);
+
+        assertTrue(moveSecondPass.isPassed());
+
+        assertTrue(moveSecondPass.isEnd(), "Drugi pass powinien zakończyć grę");
+        assertFalse(movePass.isResigned(), "Pass nie powinien być rezygnacją");
+        assertFalse(moveSecondPass.isResigned(), "Pass nie powinien być rezygnacją");
+
+        Position testMovePos = new Position(0,0);
+        Move moveAfterResign = new Move(testMovePos, whitePlayer);
+        MoveResult resultAfterResign = gameEngine.applyMove(moveAfterResign);
+        
+        assertFalse(resultAfterResign.isOk(), "Ruch po zrobieniu pass przez obojga graczy jest niedozwolony");
+        assertEquals("Gra została zakończona", resultAfterResign.getErrorMessage());
+    
+        
+    }
+     @Test
+    void testShouldPreventKo() {
+        //ustawiamy planszę na pozycji do ko- czarne "kółko" i prawie skończone białe "kółko"
+        //  0 1 2 3
+        //1   c b
+        //2 c . c b
+        //3   c b
+        //
+
+        board.setStone(new Position(1,1), StoneColor.BLACK);
+        board.setStone(new Position(2, 1), StoneColor.WHITE);
+        board.setStone(new Position(0, 2), StoneColor.BLACK);
+        board.setStone(new Position(3, 2), StoneColor.WHITE);
+        board.setStone(new Position(1, 3), StoneColor.BLACK);
+        board.setStone(new Position(2, 3), StoneColor.WHITE);
+        board.setStone(new Position(2, 2), StoneColor.BLACK);
+        
+        gameEngine.changePlayers();
+        assertEquals(whitePlayer, gameEngine.getCurrentPlayer());
+        //przejmujemy 
+        Position capturePosition = new Position(1, 2);
+        Move captureMove = new Move(capturePosition, whitePlayer);
+        MoveResult captureResult = gameEngine.applyMove(captureMove);
+        
+        assertTrue(captureResult.isOk());
+
+        Position recapturePosition = new Position(2, 2);
+        Move recaptureMove = new Move(recapturePosition, blackPlayer);
+        MoveResult blackRecapture = gameEngine.applyMove(recaptureMove);
+        assertFalse(blackRecapture.isOk());
+        assertEquals("Zaszło ko- ruch nieprawidłowy", blackRecapture.getErrorMessage());
+
+
+    }
+
+     @Test
+    void testShouldFindSingleEmptyRegion() {
+        //w tym teście uruchamiamy findemptyregion na pustej planszy i sprawdzamy
+        //czy otrzymaliśmy całą planszę
+
+        BoardService service = new BoardService();
+        Set<Position> visited = new HashSet<>();
+
+        List<Position> region = service.getEmptyRegion(board, new Position(1, 1), visited);
+        assertEquals(81, region.size(), "Cała plansza powinna być pustym terytorium");
+    }
+
+
+@Test
+void testShouldFindEnclosedEmptyRegion() {
+    //ten test pozwala sprawdzić, czy poprawnie liczony jest pusty region,
+    //gdy jest w całości otoczony kamieniami
+    //   0 1 2 3 4
+    // 0 . B B B .
+    // 1 B . . . B
+    // 2 B . . . B
+    // 3 B . . . B
+    // 4 . B B B .
+
+    BoardService service = new BoardService();
+
+    // otaczamy 
+    for (int i = 1; i <= 3; i++) {
+        board.setStone(new Position(i, 0), StoneColor.BLACK);
+        board.setStone(new Position(i, 4), StoneColor.BLACK);
+        board.setStone(new Position(0, i), StoneColor.BLACK);
+        board.setStone(new Position(4, i), StoneColor.BLACK);
+    }
+
+    Set<Position> visited = new HashSet<>();
+    List<Position> region = service.getEmptyRegion(
+            board,
+            new Position(2, 2),
+            visited
+    );
+
+    assertEquals(9, region.size(), "Środkowy region powinien mieć 9 pól");
+
+    assertTrue(region.contains(new Position(1, 1)));
+    assertTrue(region.contains(new Position(3, 3)));
+    }
+
+    @Test
+void testShouldDetectSeparateEmptyRegions() {
+    //Liczenie pustego regionu powinno również działać dla dwóch oddzielonych
+    //od siebie regionów
+    // . . c . . . . . .
+    // . . c . . . . . .
+    // . . c . . . . . .
+    // . . c . . . . . .
+    // . . c . . . . . .
+    // . . c . . . . . .
+    // . . c . . . . . .
+    // . . c . . . . . .
+    // . . c . . . . . .
+
+    
+    BoardService service = new BoardService();
+
+    for (int y = 0; y < 9; y++) {
+        board.setStone(new Position(2, y), StoneColor.BLACK);
+    }
+
+    Set<Position> visited = new HashSet<>();
+
+    List<Position> leftRegion = service.getEmptyRegion(
+            board,
+            new Position(0, 1),
+            visited
+    );
+
+    List<Position> rightRegion = service.getEmptyRegion(
+            board,
+            new Position(4, 1),
+            visited
+    );
+
+    assertEquals(18, leftRegion.size());
+    assertEquals(54, rightRegion.size());
+    }
+   @Test
+    void testShouldCalculateScoresCorrectlyOn9x9Board() {
+        // Ustawiamy scenariusz zakończonej gry na planszy 9x9
+        
+        // Terytorium czarnego w lewym górnym rogu (2x2 = 4 punkty)
+        // Otaczamy obszar od (0,0) do (1,1)
+        board.setStone(new Position(0, 2), StoneColor.BLACK);
+        board.setStone(new Position(1, 2), StoneColor.BLACK);
+        board.setStone(new Position(2, 2), StoneColor.BLACK);
+        board.setStone(new Position(2, 1), StoneColor.BLACK);
+        board.setStone(new Position(2, 0), StoneColor.BLACK);
+
+        // Terytorium białego w prawym dolnym rogu (1 punkt)
+        // Otaczamy pole (8,8)
+        board.setStone(new Position(7, 8), StoneColor.WHITE);
+        board.setStone(new Position(8, 7), StoneColor.WHITE);
+
+        // Symulujemy, że w trakcie gry gracze zdobyli jeńców
+        gameEngine.updateCaptureCounts(StoneColor.BLACK, 3); // Czarny zbił 3 kamienie
+        gameEngine.updateCaptureCounts(StoneColor.WHITE, 5); // Biały zbił 5 kamieni
+
+        // Wypisanie planszy do konsoli w celu weryfikacji wizualnej
+        System.out.println("--- Plansza 9x9 do liczenia punktów ---");
+        System.out.println(board);
+
+        // Wywołujemy metodę liczenia punktów
+        ScoreResult scores = gameEngine.calculateScores();
+
+        // ASSERT - Sprawdzamy, czy wyniki są zgodne z oczekiwaniami
+        // Wynik czarnego = 4 (terytorium) + 3 (zbicia) = 7
+        // Wynik białego = 1 (terytorium) + 5 (zbicia) = 6
+        
+        assertEquals(7, scores.getBlackScore(), "Wynik czarnego powinien wynosić 7");
+        assertEquals(6, scores.getWhiteScore(), "Wynik białego powinien wynosić 6");
+        
+        // Sprawdzamy, czy zwycięzca został poprawnie określony
+        assertEquals(blackPlayer, scores.getWinner(), "Zwycięzcą powinien być czarny gracz");
+    }
 }

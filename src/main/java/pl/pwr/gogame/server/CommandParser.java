@@ -12,6 +12,13 @@ public class CommandParser {
 
  
     public static Move parseMove(String command, GamePlayer player) {
+
+        //sprawdzamy czy komenda to resign. W tym przypadku
+        //zwracamy specjalny obiekt Move bedacy nullem
+        command = command.trim().toLowerCase();
+        if (command.equals("resign")) return null;
+
+
         if (command == null || command.isBlank()) {
             throw new IllegalArgumentException("Pusta komenda");
         }

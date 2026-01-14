@@ -27,6 +27,22 @@
             <version>5.10.1</version>
             <scope>test</scope>
         </dependency>
+        <!-- javafx do implementacji GUI-->
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>21</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-graphics</artifactId>
+            <version>21</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-fxml</artifactId>
+            <version>21.0.2</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -42,7 +58,16 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.0.0</version>
                 <configuration>
-                    <mainClass>pl.pwr.gogame.model.Main</mainClass>
+                    <mainClass>pl.pwr.gogame.service.Main</mainClass>
+                </configuration>
+            </plugin>
+            <!-- plugin do odpalenia javafx poprzez maven-->
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.8</version>
+                <configuration>
+                    <mainClass>pl.pwr.gogame.client.GoClientApp</mainClass>
                 </configuration>
             </plugin>
         </plugins>

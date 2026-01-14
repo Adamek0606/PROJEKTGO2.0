@@ -6,6 +6,9 @@ public class Board {
     private final int size;
     private final StoneColor[][] grid;
 
+    //przechowywanie stanu planszy z poprzedniej tury
+    //w celu sprawdzania warunku ko
+
     public Board(int size) {
         this.size = size;
         this.grid = new StoneColor[size][size];

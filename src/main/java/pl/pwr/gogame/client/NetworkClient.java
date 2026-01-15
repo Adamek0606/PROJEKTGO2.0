@@ -8,23 +8,27 @@ import java.util.Scanner;
 import javafx.application.Platform;
 import javafx.scene.control.TextArea;
 import pl.pwr.gogame.client.view.BoardCanvas;
+import pl.pwr.gogame.client.view.GameView;
 import pl.pwr.gogame.model.StoneColor;
 
 public class NetworkClient {
     
 
     private PrintWriter out;
-    private final BoardCanvas boardCanvas;
+
 
     //javafx zapewnia nam klasę TextArea służącą
     //do przechowywania wielu linijek tekstu.
     //Tutaj służy do przechowywania logów
-    private final TextArea logArea;
+
+    private final GameView view;
+    private final GameController controller;
     
 
-    public NetworkClient(String host, int port, BoardCanvas boardCanvas, TextArea logArea) {
-        this.boardCanvas = boardCanvas;
-        this.logArea = logArea;
+    public NetworkClient(String host, int port, GameView view,
+                     GameController controller) {
+        this.view = view;
+        this.controller = controller;
 
         try {
             Socket socket = new Socket(host, port);
@@ -37,6 +41,8 @@ public class NetworkClient {
 
     private void listen(Socket socket) {
     try (Scanner in = new Scanner(socket.getInputStream())) {
+
+
         while (in.hasNextLine()) {
             String msg = in.nextLine();
             System.out.println("SERVER: " + msg);
@@ -45,15 +51,48 @@ public class NetworkClient {
             // dane metody
             // Np. dla MOVE dzielimy wiadomość np "1 2" na
             // koordynaty i rysujemy kamień na tym miejscu
+
+            //dopóki drugi gracz się nie połączy, klikanie pierwszego w GUI nic nie robi
+            if (msg.equals("GAME_START")) {
+                log("Gra się rozpoczęła.");
+            }
+
+            if (msg.equals("YOUR_TURN")) {
+                Platform.runLater(() -> {
+                    view.getBoardCanvas().setDisable(false);
+                    log("Twój ruch.");
+                });
+            }
+
+            if (msg.equals("OPPONENT_TURN")) {
+                Platform.runLater(() -> {
+                    view.getBoardCanvas().setDisable(true);
+                    log("Ruch przeciwnika.");
+                });
+            }
+
+            if (msg.startsWith("CONFIG BOARD_SIZE")) {
+                int size = Integer.parseInt(msg.split(" ")[2]);
+
+                Platform.runLater(() -> {
+                    view.createBoard(size);
+                    controller.registerBoardHandlers();
+                });
+                continue;
+            }
+
             if (msg.startsWith("MOVE")) {
                 String[] parts = msg.split(" ");
                 int col = Integer.parseInt(parts[1]);
                 int row = Integer.parseInt(parts[2]);
                 StoneColor color = StoneColor.valueOf(parts[3]);
 
-                Platform.runLater(() ->
-                    boardCanvas.drawStone(col, row, color)
-                );
+                Platform.runLater(() -> {
+                    BoardCanvas board = view.getBoardCanvas();
+                    if (board != null) {
+                        board.drawStone(col, row, color);
+                    }
+                });
 
             } else if (msg.startsWith("CAPTURE")) {
                 // usuwanie kamienia na danym miejscu
@@ -62,9 +101,12 @@ public class NetworkClient {
                 int col = Integer.parseInt(parts[1]);
                 int row = Integer.parseInt(parts[2]);
 
-                 Platform.runLater(() ->
-                    boardCanvas.removeStone(col, row)
-                );
+                 Platform.runLater(() -> {
+                    BoardCanvas board = view.getBoardCanvas();
+                    if (board != null) {
+                        board.removeStone(col, row);
+                    }
+                });
 
             } else if (msg.startsWith("PASS")) {
                 //wpisywanie pasu do logów
@@ -95,7 +137,7 @@ public class NetworkClient {
         //funkcji appendText
         private void log(String message) {
         Platform.runLater(() ->
-            logArea.appendText(message + "\n")
+            view.getLogArea().appendText(message + "\n")
         );
 }
 }

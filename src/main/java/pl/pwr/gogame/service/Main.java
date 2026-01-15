@@ -16,7 +16,9 @@ import pl.pwr.gogame.server.ClientHandler;
 
 public class Main {
     public static void main(String[] args) throws IOException {
-       
+
+         
+
             ServerSocket serverSocket = new ServerSocket(58901);
             System.out.println("Serwer Go działa...");
 
@@ -35,6 +37,7 @@ public class Main {
                     boardSize = Integer.parseInt(sizeInput);
                     try {
                         board = BoardFactory.createBoard(boardSize);
+                        
                     } catch (IllegalArgumentException e) {
                         System.out.println("Nieprawidłowy rozmiar planszy. Dozwolone wartości: 9, 13, 19.");
                     }

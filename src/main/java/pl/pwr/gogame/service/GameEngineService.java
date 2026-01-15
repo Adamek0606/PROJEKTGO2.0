@@ -19,7 +19,7 @@ import pl.pwr.gogame.model.StoneColor;
 public class GameEngineService {
 
     private final BoardService boardService;
-
+    
     public GameEngineService(BoardService boardService) {
         this.boardService = boardService;
     }

@@ -1,5 +1,6 @@
 package pl.pwr.gogame.client;
 
+import pl.pwr.gogame.client.view.BoardCanvas;
 import pl.pwr.gogame.client.view.GameView;
 
 public class GameController {
@@ -11,10 +12,15 @@ public class GameController {
     this.client = new NetworkClient(
         "localhost",
         58901,
-        view.getBoardCanvas(), view.getLogArea()
+        view, this
     );
 
-    initHandlers();
+     view.getInputField().setOnAction(e -> {
+        client.send(view.getInputField().getText());
+        view.getInputField().clear();
+    });
+    
+
 }
 
     private void initHandlers() {
@@ -32,5 +38,13 @@ public class GameController {
         });
     }
 
-    
+    public void registerBoardHandlers() {
+        BoardCanvas board = view.getBoardCanvas();
+
+        board.setOnMouseClicked(e -> {
+            int col = (int) ((e.getX() - 20) / 40);
+            int row = (int) ((e.getY() - 20) / 40);
+            client.send(col + " " + row);
+        });
+    }
 }

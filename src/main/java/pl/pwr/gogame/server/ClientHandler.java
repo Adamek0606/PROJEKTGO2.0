@@ -23,6 +23,9 @@ public class ClientHandler implements Runnable {
     private ClientHandler opponent;
     private PrintWriter out;
 
+    //potrzebna flaga by pierwszy gracz nie mógł robić ruchów zanim drugi nie dołączy 
+    boolean gameStarted = false;
+
     public ClientHandler(Socket socket, GameEngine engine, GamePlayer player, Board board) {
         this.socket = socket;
         this.engine = engine;
@@ -39,7 +42,7 @@ public class ClientHandler implements Runnable {
 
             // Używamy nowej klasy do sformatowania powitania
             send(ResponseFormatter.formatWelcome(board));
-
+            sendConfigBoardsize();
             // Jeśli przeciwnik jeszcze nie dołączył — poinformuj gracza, że czekamy
             if (opponent == null) {
                 send("OCZEKIWANIE: Oczekiwanie na dołączenie przeciwnika...");
@@ -59,6 +62,12 @@ public class ClientHandler implements Runnable {
 
     private void handleCommand(String command) {
         try {
+
+            if (!gameStarted) {
+                sendText("Gra jeszcze się nie rozpoczęła. Oczekiwanie na przeciwnika.");
+                return;
+            }
+
             command = command.trim();
 
             // Obsługa rezygnacji
@@ -94,6 +103,11 @@ public class ClientHandler implements Runnable {
                 }
             } else {
                 notifyPlayers(null, null);
+                ClientHandler current = engine.getCurrentPlayer() == player ? this : opponent;
+                ClientHandler waiting = current == this ? opponent : this;
+
+                current.send("YOUR_TURN");
+                waiting.send("OPPONENT_TURN");
             }
             return;
         }
@@ -118,6 +132,11 @@ public class ClientHandler implements Runnable {
             
             if (result.isOk()) {
                 notifyPlayers(null, null);
+                ClientHandler current = engine.getCurrentPlayer() == player ? this : opponent;
+                ClientHandler waiting = current == this ? opponent : this;
+
+                current.send("YOUR_TURN");
+                waiting.send("OPPONENT_TURN");
             }
         } catch (IllegalArgumentException e) {
             sendText("BŁĄD WEJŚCIA: " + e.getMessage());
@@ -176,6 +195,10 @@ public class ClientHandler implements Runnable {
         send("TEXT " + message);
     }
     
+    private void sendConfigBoardsize() {
+        send("CONFIG BOARD_SIZE " + board.getSize());
+    }
+
     private void handleDisconnect() {
         try {
             socket.close();
@@ -189,9 +212,20 @@ public class ClientHandler implements Runnable {
 
     public void setOpponent(ClientHandler opponent) {
         this.opponent = opponent;
+        this.gameStarted = true;
+        opponent.gameStarted = true;
+
         // Jeśli ustawiono przeciwnika, poinformuj obie strony, że gra może się rozpocząć
         if (opponent != null) {
-            send("INFO: Przeciwnik dołączył. Gra się rozpoczyna.");
+            send("GAME_START");
+            opponent.send("GAME_START");
+            if (engine.getCurrentPlayer() == player) {
+                send("YOUR_TURN");
+                opponent.send("OPPONENT_TURN");
+            } else {
+                send("OPPONENT_TURN");
+                opponent.send("YOUR_TURN");
+            }
         }
     }
 

@@ -1,6 +1,7 @@
 package pl.pwr.gogame.client.view;
 
 import javafx.scene.Parent;
+import javafx.scene.control.Button;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
@@ -44,4 +45,6 @@ public class GameView {
         this.boardCanvas = board;
         root.setCenter(board);
     }
+
+    
 }

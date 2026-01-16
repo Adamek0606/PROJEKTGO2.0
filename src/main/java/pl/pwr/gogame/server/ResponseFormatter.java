@@ -37,14 +37,14 @@ public class ResponseFormatter {
     public static String formatScores(ScoreResult scores) {
     StringBuilder sb = new StringBuilder();
     sb.append("KONIEC GRY - PODSUMOWANIE:").append(System.lineSeparator());
-    sb.append("Wynik czarnego: ").append(scores.getBlackScore()).append(" punktów.").append(System.lineSeparator());
-    sb.append("Wynik białego: ").append(scores.getWhiteScore()).append(" punktów.").append(System.lineSeparator());
+    sb.append("TEXT Wynik czarnego: ").append(scores.getBlackScore()).append(" punktów.").append(System.lineSeparator());
+    sb.append("TEXT Wynik białego: ").append(scores.getWhiteScore()).append(" punktów.").append(System.lineSeparator());
 
     GamePlayer winner = scores.getWinner();
     if (winner != null) {
-        sb.append("Wygrywa: ").append(winner.getName()).append(" (").append(winner.getColor()).append(")");
+        sb.append("TEXT Wygrywa: ").append(winner.getName()).append(" (").append(winner.getColor()).append(")");
     } else {
-        sb.append("Remis!");
+        sb.append("TEXT Remis!");
     }
     return sb.toString();
 }

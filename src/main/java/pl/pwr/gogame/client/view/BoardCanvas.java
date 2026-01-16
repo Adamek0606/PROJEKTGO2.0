@@ -24,6 +24,10 @@ public class BoardCanvas extends Canvas {
         this.size = size;
         setWidth(size * gridSize);
         setHeight(size * gridSize);
+
+        widthProperty().addListener(evt -> redraw());
+        heightProperty().addListener(evt -> redraw());
+        
         drawEmptyBoard();
     }
 
@@ -38,18 +42,20 @@ public class BoardCanvas extends Canvas {
         gc.clearRect(0, 0, getWidth(), getHeight());
 
         //rysujemy planszę- linie horyzontalne i wertykalne
+        double w = getWidth();
+        double h = getHeight();
+
+        double cellWidth = w / size;
+        double cellHeight = h / size;
+
+ 
         for (int i = 0; i < size; i++) {
-            gc.strokeLine(
-                gridSize / 2, gridSize / 2 + i * gridSize,
-                gridSize / 2 + (size - 1) * gridSize, gridSize / 2 + i * gridSize
-            );
-        
-
-            gc.strokeLine(
-                    gridSize / 2 + i * gridSize, gridSize / 2,
-                    gridSize / 2 + i * gridSize, gridSize / 2 + (size - 1) * gridSize
-                );
-
+            
+            gc.strokeLine(cellWidth / 2, cellHeight / 2 + i * cellHeight,
+                    w - cellWidth / 2, cellHeight / 2 + i * cellHeight);
+           
+            gc.strokeLine(cellWidth / 2 + i * cellWidth, cellHeight / 2,
+                    cellWidth / 2 + i * cellWidth, h - cellHeight / 2);
         }
     }
     //rysujemy umieszczony kamień
@@ -69,17 +75,23 @@ public class BoardCanvas extends Canvas {
     drawEmptyBoard();
 
     GraphicsContext gc = getGraphicsContext2D();
-    for (Map.Entry<String, StoneColor> entry : stones.entrySet()) {
-        String[] parts = entry.getKey().split(",");
-        int col = Integer.parseInt(parts[0]);
-        int row = Integer.parseInt(parts[1]);
+    double w = getWidth();
+        double h = getHeight();
+        double cellWidth = w / size;
+        double cellHeight = h / size;
+        double stoneDiameter = Math.min(cellWidth, cellHeight) * 0.7; // 70% of cell
 
-        gc.setFill(entry.getValue() == StoneColor.BLACK ? Color.BLACK : Color.WHITE);
-        gc.fillOval(
-            col * gridSize + gridSize / 2 - 15,
-            row * gridSize + gridSize / 2 - 15,
-            30, 30
-        );
+        for (Map.Entry<String, StoneColor> entry : stones.entrySet()) {
+            String[] parts = entry.getKey().split(",");
+            int col = Integer.parseInt(parts[0]);
+            int row = Integer.parseInt(parts[1]);
+
+            gc.setFill(entry.getValue() == StoneColor.BLACK ? Color.BLACK : Color.WHITE);
+
+            double x = col * cellWidth + cellWidth / 2 - stoneDiameter / 2;
+            double y = row * cellHeight + cellHeight / 2 - stoneDiameter / 2;
+
+            gc.fillOval(x, y, stoneDiameter, stoneDiameter);
+        }
     }
-}
 }

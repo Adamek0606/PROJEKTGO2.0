@@ -1,3 +1,5 @@
+# PROEJEKT GO 2.0
+
 Uruchamianie aplikacji
 
 Do uruchomienia gry wymagane są trzy osobne terminale.
@@ -34,8 +36,3 @@ w przypadku braku porozumienia negocjacje zostają anulowane, a gra toczy się d
 3. Resign (poddanie się)
 
 Gracz może w dowolnym momencie poddać partię. Rezygnacja natychmiast kończy grę i przyznaje zwycięstwo przeciwnikowi.
-
-
-Maven
-
-Architektura klient–serwer (Socket)

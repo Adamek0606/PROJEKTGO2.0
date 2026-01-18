@@ -15,14 +15,38 @@ import pl.pwr.gogame.model.GamePlayer;
 import pl.pwr.gogame.model.StoneColor;
 import pl.pwr.gogame.server.ClientHandler;
 
+/**
+ * Klasa {@code Main} stanowi główny punkt uruchomieniowy
+ * serwera gry Go.
+ *
+ * <p>
+ * Odpowiada za:
+ * <ul>
+ *   <li>uruchomienie gniazda serwera</li>
+ *   <li>akceptację połączeń klientów</li>
+ *   <li>obsługę wyboru rozmiaru planszy przez pierwszego gracza</li>
+ *   <li>inicjalizację silnika gry oraz graczy</li>
+ *   <li>utworzenie i uruchomienie {@link ClientHandler} dla klientów</li>
+ * </ul>
+ * </p>
+ *
+ * <p>
+ * Wzorzec projektowy: <b>Composite</b> – klasa składa się z wielu
+ * współpracujących komponentów (silnik gry, plansza, handlery klientów).
+ * </p>
+ */
 public class Main {
+
+    /**
+     * Metoda główna uruchamiająca serwer gry Go.
+     *
+     * @param args argumenty linii poleceń (nieużywane)
+     * @throws IOException w przypadku błędu wejścia/wyjścia
+     */
     public static void main(String[] args) throws IOException {
 
-         
-
-            try (ServerSocket serverSocket = new ServerSocket(58901)) {
+        try (ServerSocket serverSocket = new ServerSocket(58901)) {
             System.out.println("Serwer Go działa...");
-
             System.out.println("Witaj w Go! (serwer będzie oczekiwał na wybór rozmiaru od pierwszego klienta)");
 
             // Akceptuj pierwszego i drugiego klienta (oba mogą się połączyć zanim wybierzemy rozmiar)
@@ -42,6 +66,7 @@ public class Main {
             Scanner in1 = new Scanner(socket1.getInputStream());
             int boardSize = 0;
             Board board = null;
+
             while (in1.hasNextLine()) {
                 String line = in1.nextLine().trim();
                 if (line.startsWith("SET_BOARD_SIZE")) {
@@ -53,8 +78,10 @@ public class Main {
                             System.out.println("Wybrano rozmiar planszy: " + boardSize);
                             break;
                         } catch (IllegalArgumentException e) {
-                            System.out.println("Nieprawidłowy rozmiar otrzymany od klienta: " + parts[1]);
-                            // ignoruj i czekaj dalejs
+                            System.out.println(
+                                "Nieprawidłowy rozmiar otrzymany od klienta: " + parts[1]
+                            );
+                            // ignoruj i czekaj dalej
                         }
                     }
                 } else {
@@ -63,13 +90,13 @@ public class Main {
             }
 
             // nie zamykamy 'in1' ani InputStream tutaj — ClientHandler będzie obsługiwał połączenie dalej
-
             if (board == null) {
                 System.out.println("Nie otrzymano prawidłowego rozmiaru planszy. Kończę.");
                 socket1.close();
                 return;
             }
 
+            // Inicjalizacja silnika gry
             GameEngine gameEngine = new GameEngine(board);
 
             // Stworzenie dwóch lokalnych graczy
@@ -79,18 +106,16 @@ public class Main {
 
             System.out.println("OCZEKIWANIE: Oczekiwanie na drugiego klienta... (oczekuję na 1 połączenie)");
 
-            // Teraz utwórz ClientHandlery dla obu klientów i uruchom je
+            // Utworzenie handlerów klientów
             ClientHandler black = new ClientHandler(socket1, gameEngine, blackPlayer, board);
             ClientHandler white = new ClientHandler(socket2, gameEngine, whitePlayer, board);
+
+            // Uruchomienie wątków obsługi klientów
             new Thread(black).start();
             new Thread(white).start();
 
-            // Po uruchomieniu obu handlerów — ustaw przeciwników i powiadomienia
+            // Po uruchomieniu obu handlerów — ustaw przeciwników i rozpocznij grę
             black.setOpponent(white);
-            }
-
-
-           
-
+        }
     }
-} 
+}

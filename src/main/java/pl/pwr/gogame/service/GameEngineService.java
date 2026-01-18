@@ -14,18 +14,40 @@ import pl.pwr.gogame.model.Position;
 import pl.pwr.gogame.model.StoneColor;
 
 /**
+ * Klasa {@code GameEngineService} zawiera główną logikę gry Go.
+ * Odpowiada za walidację i wykonywanie ruchów, obsługę pasów,
+ * rezygnacji oraz reguł gry (zbicia, samobójstwo, ko).
+ *
+ * Logika ta jest wydzielona z klasy {@link GameEngine},
+ * która pełni rolę fasady i przechowuje stan gry.
+ */
+/**
  * Serwis zawierający główną logikę gry.
  */
 public class GameEngineService {
 
+    /**
+     * Serwis pomocniczy operujący na planszy gry.
+     */
     private final BoardService boardService;
-    
+
+    /**
+     * Tworzy nowy serwis silnika gry.
+     *
+     * @param boardService serwis operujący na planszy
+     */
     public GameEngineService(BoardService boardService) {
         this.boardService = boardService;
     }
 
     /**
-     * Stosuje ruch na planszy, waliduje go i zarządza stanem gry.
+     * Stosuje ruch na planszy, waliduje go oraz aktualizuje stan gry.
+     * Sprawdza poprawność tury, regułę samobójstwa, regułę ko
+     * oraz obsługuje zbicia kamieni przeciwnika.
+     *
+     * @param engine silnik gry
+     * @param move ruch do wykonania
+     * @return rezultat ruchu
      */
     public MoveResult applyMove(GameEngine engine, Move move) {
         if (engine.isEnd()) {
@@ -36,12 +58,16 @@ public class GameEngineService {
         }
 
         engine.setLastMoveWasPass(false);
-        
+
         if (!move.getPlayer().equals(engine.getCurrentPlayer())) {
             return MoveResult.error("Tura przeciwnika");
         }
 
-        String error = validatePreConditions(engine.getBoard(), move.getPosition(), move.getPlayer().getColor());
+        String error = validatePreConditions(
+                engine.getBoard(),
+                move.getPosition(),
+                move.getPlayer().getColor()
+        );
         if (error != null) {
             return MoveResult.error(error);
         }
@@ -49,12 +75,14 @@ public class GameEngineService {
         String previousBoardState = engine.getBoard().toString();
         engine.getBoard().setStone(move.getPosition(), move.getPlayer().getColor());
 
-        List<Position> capturedStones = tryCaptureOpponents(engine, move.getPosition(), move.getPlayer().getColor());
+        List<Position> capturedStones =
+                tryCaptureOpponents(engine, move.getPosition(), move.getPlayer().getColor());
 
         boolean singleCapture = capturedStones.size() == 1;
 
         if (capturedStones.isEmpty()) {
-            List<Position> myGroup = boardService.getGroup(engine.getBoard(), move.getPosition(), new HashSet<>());
+            List<Position> myGroup =
+                    boardService.getGroup(engine.getBoard(), move.getPosition(), new HashSet<>());
             if (boardService.getGroupLiberties(engine.getBoard(), myGroup) == 0) {
                 engine.getBoard().removeStone(move.getPosition()); // Cofnij ruch
                 return MoveResult.error("Nie można postawić kamienia - samobójstwo");
@@ -77,6 +105,11 @@ public class GameEngineService {
 
     /**
      * Obsługuje spasowanie przez gracza.
+     * Jeśli obaj gracze spasują kolejno, gra zostaje zakończona.
+     *
+     * @param engine silnik gry
+     * @param player gracz wykonujący pas
+     * @return rezultat ruchu typu pass
      */
     public MoveResult pass(GameEngine engine, GamePlayer player) {
         if (!player.equals(engine.getCurrentPlayer())) {
@@ -96,7 +129,11 @@ public class GameEngineService {
     }
 
     /**
-     * Obsługuje poddanie się gracza.
+     * Obsługuje rezygnację gracza i kończy grę.
+     *
+     * @param engine silnik gry
+     * @param player gracz rezygnujący
+     * @return rezultat rezygnacji
      */
     public MoveResult resign(GameEngine engine, GamePlayer player) {
         GamePlayer winner = engine.getOpponentPlayer(player);
@@ -105,6 +142,14 @@ public class GameEngineService {
         return MoveResult.resign(player, winner);
     }
 
+    /**
+     * Sprawdza warunki wstępne poprawności ruchu.
+     *
+     * @param board plansza gry
+     * @param position pozycja ruchu
+     * @param color kolor kamienia
+     * @return komunikat błędu lub {@code null}, jeśli ruch jest poprawny
+     */
     private String validatePreConditions(Board board, Position position, StoneColor color) {
         if (color == StoneColor.EMPTY) return "Kolor nie może być pusty";
         if (position == null) return "Pozycja nie może być pusta";
@@ -113,26 +158,53 @@ public class GameEngineService {
         return null;
     }
 
-    private List<Position> tryCaptureOpponents(GameEngine engine, Position currentMovePos, StoneColor myColor) {
+    /**
+     * Próbuje zbić grupy kamieni przeciwnika po wykonaniu ruchu.
+     *
+     * @param engine silnik gry
+     * @param currentMovePos pozycja wykonanego ruchu
+     * @param myColor kolor aktualnego gracza
+     * @return lista pozycji zbitych kamieni
+     */
+    private List<Position> tryCaptureOpponents(GameEngine engine,
+                                               Position currentMovePos,
+                                               StoneColor myColor) {
         List<Position> allCapturedStones = new ArrayList<>();
         StoneColor opponentColor = myColor.other();
         Set<Position> visitedStones = new HashSet<>();
 
         for (Position neighbor : boardService.getNeighbors(engine.getBoard(), currentMovePos)) {
-            if (engine.getBoard().getStone(neighbor) == opponentColor && !visitedStones.contains(neighbor)) {
-                List<Position> opponentGroup = boardService.getGroup(engine.getBoard(), neighbor, visitedStones);
+            if (engine.getBoard().getStone(neighbor) == opponentColor
+                    && !visitedStones.contains(neighbor)) {
+
+                List<Position> opponentGroup =
+                        boardService.getGroup(engine.getBoard(), neighbor, visitedStones);
+
                 if (boardService.getGroupLiberties(engine.getBoard(), opponentGroup) == 0) {
                     allCapturedStones.addAll(opponentGroup);
                 }
             }
         }
+
         for (Position captured : allCapturedStones) {
             engine.getBoard().removeStone(captured);
         }
         return allCapturedStones;
     }
 
-    private void rollbackMove(GameEngine engine, Position placed, List<Position> captured, StoneColor color) {
+    /**
+     * Wycofuje ruch (rollback), przywracając planszę do poprzedniego stanu.
+     * Wykorzystywane głównie przy wykrywaniu reguły ko.
+     *
+     * @param engine silnik gry
+     * @param placed pozycja postawionego kamienia
+     * @param captured lista zbitych kamieni
+     * @param color kolor aktualnego gracza
+     */
+    private void rollbackMove(GameEngine engine,
+                              Position placed,
+                              List<Position> captured,
+                              StoneColor color) {
         engine.getBoard().removeStone(placed);
         for (Position p : captured) {
             engine.getBoard().setStone(p, color.other());

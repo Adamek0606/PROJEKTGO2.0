@@ -17,22 +17,45 @@ import pl.pwr.gogame.client.view.BoardCanvas;
 import pl.pwr.gogame.client.view.GameView;
 import pl.pwr.gogame.model.StoneColor;
 
+/**
+ * Klasa {@code NetworkClient} odpowiada za komunikację sieciową
+ * pomiędzy klientem gry Go a serwerem. Obsługuje wysyłanie i
+ * odbieranie wiadomości, aktualizację widoku gry oraz reakcje
+ * na zdarzenia przychodzące z serwera.
+ */
 public class NetworkClient {
-    
 
+    /**
+     * Strumień wyjściowy służący do wysyłania wiadomości do serwera.
+     */
     private PrintWriter out;
-
 
     //javafx zapewnia nam klasę TextArea służącą
     //do przechowywania wielu linijek tekstu.
     //Tutaj służy do przechowywania logów
 
+    /**
+     * Widok gry, który jest aktualizowany na podstawie komunikatów z serwera.
+     */
     private final GameView view;
-    private final GameController controller;
-    
 
+    /**
+     * Kontroler gry, wykorzystywany m.in. do rejestracji obsługi planszy.
+     */
+    private final GameController controller;
+
+    /**
+     * Tworzy nowego klienta sieciowego i nawiązuje połączenie z serwerem.
+     * Po połączeniu uruchamiany jest osobny wątek nasłuchujący komunikaty
+     * przychodzące z serwera.
+     *
+     * @param host adres serwera
+     * @param port port serwera
+     * @param view widok gry
+     * @param controller kontroler gry
+     */
     public NetworkClient(String host, int port, GameView view,
-                     GameController controller) {
+                         GameController controller) {
         this.view = view;
         this.controller = controller;
 
@@ -45,6 +68,11 @@ public class NetworkClient {
         }
     }
 
+    /**
+     * Wyświetla okno dialogowe umożliwiające wybór
+     * rozmiaru planszy gry. Opcja ta dostępna jest tylko
+     * dla pierwszego gracza.
+     */
     private void showBoardSizeDialog() {
         Stage dialog = new Stage();
         dialog.initModality(Modality.APPLICATION_MODAL);
@@ -89,7 +117,7 @@ public class NetworkClient {
 
         Scene scene = new Scene(root, 520, 220);
 
-        // make buttons large and square-ish, scaling with dialog size
+        // Stylizacja przycisków i dostosowanie ich rozmiarów do sceny
         b9.setStyle("-fx-font-size: 18px;");
         b13.setStyle("-fx-font-size: 18px;");
         b19.setStyle("-fx-font-size: 18px;");
@@ -112,134 +140,147 @@ public class NetworkClient {
         dialog.showAndWait();
     }
 
+    /**
+     * Nasłuchuje wiadomości przychodzących z serwera
+     * i reaguje na nie odpowiednimi akcjami w interfejsie użytkownika.
+     *
+     * @param socket aktywne połączenie z serwerem
+     */
     private void listen(Socket socket) {
-    try (Scanner in = new Scanner(socket.getInputStream())) {
+        try (Scanner in = new Scanner(socket.getInputStream())) {
 
+            while (in.hasNextLine()) {
+                String msg = in.nextLine();
+                System.out.println("SERVER: " + msg);
 
-        while (in.hasNextLine()) {
-            String msg = in.nextLine();
-            System.out.println("SERVER: " + msg);
+                // Jeśli w dowolnym komunikacie pojawia się informacja o zakończeniu gry,
+                // zablokuj przycisk 'Resign' (użytkownik nie może się poddać po zakończeniu gry).
+                if (msg.toLowerCase().contains("koniec gry") || msg.toLowerCase().contains("koniec")) {
+                    Platform.runLater(() -> {
+                        try {
+                            view.getResignButton().setDisable(true);
+                        } catch (Exception ignored) {}
+                    });
+                }
 
-            // Jeśli w dowolnym komunikacie pojawia się informacja o zakończeniu gry,
-            // zablokuj przycisk 'Resign' (użytkownik nie może się poddać po zakończeniu gry).
-            if (msg.toLowerCase().contains("koniec gry") || msg.toLowerCase().contains("koniec")) {
-                Platform.runLater(() -> {
-                    try {
-                        view.getResignButton().setDisable(true);
-                    } catch (Exception ignored) {}
-                });
-            }
+                if (msg.equals("REQUEST_BOARD_SIZE")) {
+                    // show modal dialog to choose board size (only first client receives this)
+                    Platform.runLater(() -> showBoardSizeDialog());
+                    continue;
+                }
 
-            if (msg.equals("REQUEST_BOARD_SIZE")) {
-                // show modal dialog to choose board size (only first client receives this)
-                Platform.runLater(() -> showBoardSizeDialog());
-                continue;
-            }
+                // W zależności od typu zdarzenia wywoływane są
+                // dane metody
+                // Np. dla MOVE dzielimy wiadomość np "1 2" na
+                // koordynaty i rysujemy kamień na tym miejscu
 
-            // W zależności od typu zdarzenia wywoływane są
-            // dane metody
-            // Np. dla MOVE dzielimy wiadomość np "1 2" na
-            // koordynaty i rysujemy kamień na tym miejscu
+                //dopóki drugi gracz się nie połączy, klikanie pierwszego w GUI nic nie robi
+                if (msg.equals("GAME_START")) {
+                    log("Gra się rozpoczęła.");
+                }
 
-            //dopóki drugi gracz się nie połączy, klikanie pierwszego w GUI nic nie robi
-            if (msg.equals("GAME_START")) {
-                log("Gra się rozpoczęła.");
-            }
+                if (msg.equals("YOUR_TURN")) {
+                    Platform.runLater(() -> {
+                        view.getBoardCanvas().setDisable(false);
+                        log("Twój ruch.");
+                    });
+                }
 
-            if (msg.equals("YOUR_TURN")) {
-                Platform.runLater(() -> {
-                    view.getBoardCanvas().setDisable(false);
-                    log("Twój ruch.");
-                });
-            }
+                if (msg.equals("OPPONENT_TURN")) {
+                    Platform.runLater(() -> {
+                        view.getBoardCanvas().setDisable(true);
+                        log("Ruch przeciwnika.");
+                    });
+                }
 
-            if (msg.equals("OPPONENT_TURN")) {
-                Platform.runLater(() -> {
-                    view.getBoardCanvas().setDisable(true);
-                    log("Ruch przeciwnika.");
-                });
-            }
+                if (msg.startsWith("CONFIG BOARD_SIZE")) {
+                    int size = Integer.parseInt(msg.split(" ")[2]);
 
-            if (msg.startsWith("CONFIG BOARD_SIZE")) {
-                int size = Integer.parseInt(msg.split(" ")[2]);
+                    Platform.runLater(() -> {
+                        view.createBoard(size);
+                        controller.registerBoardHandlers();
+                    });
+                    continue;
+                }
 
-                Platform.runLater(() -> {
-                    view.createBoard(size);
-                    controller.registerBoardHandlers();
-                });
-                continue;
-            }
+                if (msg.startsWith("MOVE")) {
+                    String[] parts = msg.split(" ");
+                    int col = Integer.parseInt(parts[1]);
+                    int row = Integer.parseInt(parts[2]);
+                    StoneColor color = StoneColor.valueOf(parts[3]);
 
-            if (msg.startsWith("MOVE")) {
-                String[] parts = msg.split(" ");
-                int col = Integer.parseInt(parts[1]);
-                int row = Integer.parseInt(parts[2]);
-                StoneColor color = StoneColor.valueOf(parts[3]);
+                    Platform.runLater(() -> {
+                        BoardCanvas board = view.getBoardCanvas();
+                        if (board != null) {
+                            board.drawStone(col, row, color);
+                        }
+                    });
 
-                Platform.runLater(() -> {
-                    BoardCanvas board = view.getBoardCanvas();
-                    if (board != null) {
-                        board.drawStone(col, row, color);
+                } else if (msg.startsWith("CAPTURE")) {
+                    // usuwanie kamienia na danym miejscu
+
+                    String[] parts = msg.split(" ");
+                    int col = Integer.parseInt(parts[1]);
+                    int row = Integer.parseInt(parts[2]);
+
+                    Platform.runLater(() -> {
+                        BoardCanvas board = view.getBoardCanvas();
+                        if (board != null) {
+                            board.removeStone(col, row);
+                        }
+                    });
+
+                } else if (msg.startsWith("PASS")) {
+                    //wpisywanie pasu do logów
+                    log("Przeciwnik zpasował.");
+                } else if (msg.startsWith("RESIGN")) {
+                    String[] parts = msg.split(" ");
+                    log("Koniec gry. Wygrał: " + parts[2]);
+                    Platform.runLater(() -> {
+                        try {
+                            view.getResignButton().setDisable(true);
+                        } catch (Exception ignored) {}
+                    });
+                } else if (msg.startsWith("TEXT")) {
+                    //Wiadomości są schematu: "TEXT: info",
+                    //więc do logów wpisujemy samo info
+                    //i usuwamy keyword "TEXT" z początku wiadomości
+                    String text = msg.substring(5);
+                    log(text);
+                    if (text.contains("Koniec gry") || text.contains("Gra zakończona")) {
+                        Platform.runLater(() -> {
+                            try {
+                                view.getResignButton().setDisable(true);
+                                view.getPassButton().setDisable(true);
+                            } catch (Exception ignored) {}
+                        });
                     }
-                });
-
-            } else if (msg.startsWith("CAPTURE")) {
-                // usuwanie kamienia na danym miejscu
-
-                String[] parts = msg.split(" ");
-                int col = Integer.parseInt(parts[1]);
-                int row = Integer.parseInt(parts[2]);
-
-                 Platform.runLater(() -> {
-                    BoardCanvas board = view.getBoardCanvas();
-                    if (board != null) {
-                        board.removeStone(col, row);
-                    }
-                });
-
-            } else if (msg.startsWith("PASS")) {
-                //wpisywanie pasu do logów
-                log("Przeciwnik zpasował.");
-            } else if (msg.startsWith("RESIGN")) {
-                 String[] parts = msg.split(" ");
-                log("Koniec gry. Wygrał: " + parts[2]);
-                Platform.runLater(() -> {
-                    try {
-                        view.getResignButton().setDisable(true);
-                    } catch (Exception ignored) {}
-                });
-            } else if (msg.startsWith("TEXT")) {
-                //Wiadomości są schematu: "TEXT: info",
-                //więc do logów wpisujemy samo info
-                //i usuwamy keyword "TEXT" z początku wiadomości
-                 String text = msg.substring(5);
-                 log(text);
-                 if (text.contains("Koniec gry")  || text.contains("Gra zakończona")) {
-                     Platform.runLater(() -> {
-                         try {
-                             view.getResignButton().setDisable(true);
-                             view.getPassButton().setDisable(true);
-                         } catch (Exception ignored) {}
-                     });
-                 }
+                }
             }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-    } catch (IOException e) {
-        e.printStackTrace();
     }
-}
 
-      public void send(String msg) {
+    /**
+     * Wysyła wiadomość tekstową do serwera.
+     *
+     * @param msg treść wiadomości
+     */
+    public void send(String msg) {
         if (out != null) {
             out.println(msg);
         }
     }
-        //funkcja do dodania linijki z opisem zdarzenia do 
-        //naszych logów za pomocą dołączonej do klasy TextArea
-        //funkcji appendText
-        private void log(String message) {
+
+    /**
+     * Dodaje wpis do logów gry w wątku JavaFX.
+     *
+     * @param message treść komunikatu
+     */
+    private void log(String message) {
         Platform.runLater(() ->
-            view.getLogArea().appendText(message + "\n")
+                view.getLogArea().appendText(message + "\n")
         );
-}
+    }
 }

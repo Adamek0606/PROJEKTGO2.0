@@ -1,3 +1,4 @@
+//Client Handler
 // sluzy do obslugi klienta w serwerze gry Go
 package pl.pwr.gogame.server;
 
@@ -15,19 +16,65 @@ import pl.pwr.gogame.model.MoveResult;
 import pl.pwr.gogame.model.Position;
 import pl.pwr.gogame.model.ScoreResult;
 
+/**
+ * Klasa {@code ClientHandler} odpowiada za obsługę pojedynczego klienta
+ * po stronie serwera gry Go. Każda instancja działa w osobnym wątku
+ * i przetwarza komunikację pomiędzy serwerem a jednym graczem.
+ *
+ * Odpowiada za:
+ * <ul>
+ *   <li>odbieranie komend od klienta</li>
+ *   <li>delegowanie logiki do {@link GameEngine}</li>
+ *   <li>wysyłanie komunikatów do klienta oraz przeciwnika</li>
+ *   <li>synchronizację stanu gry pomiędzy graczami</li>
+ * </ul>
+ */
 public class ClientHandler implements Runnable {
+
+    /**
+     * Gniazdo sieciowe połączone z klientem.
+     */
     private final Socket socket;
+
+    /**
+     * Silnik gry zarządzający logiką rozgrywki.
+     */
     private final GameEngine engine;
+
+    /**
+     * Gracz obsługiwany przez ten handler.
+     */
     private final GamePlayer player;
+
+    /**
+     * Plansza gry.
+     */
     private final Board board;
+
+    /**
+     * Handler przeciwnika.
+     */
     private ClientHandler opponent;
+
+    /**
+     * Strumień wyjściowy do wysyłania danych do klienta.
+     */
     private PrintWriter out;
 
     //potrzebna flaga by pierwszy gracz nie mógł robić ruchów zanim drugi nie dołączy 
     boolean gameStarted = false;
+
     // flaga zapobiegająca wielokrotnemu wysyłaniu komunikatu o zakończeniu gry
     private boolean gameEndNotified = false;
 
+    /**
+     * Tworzy nowy {@code ClientHandler}.
+     *
+     * @param socket gniazdo klienta
+     * @param engine silnik gry
+     * @param player gracz
+     * @param board plansza gry
+     */
     public ClientHandler(Socket socket, GameEngine engine, GamePlayer player, Board board) {
         this.socket = socket;
         this.engine = engine;
@@ -35,6 +82,10 @@ public class ClientHandler implements Runnable {
         this.board = board;
     }
 
+    /**
+     * Główna pętla wątku obsługującego klienta.
+     * Odbiera komendy z gniazda i przekazuje je do obsługi.
+     */
     @Override
     public void run() {
         try (Scanner in = new Scanner(socket.getInputStream());
@@ -45,6 +96,7 @@ public class ClientHandler implements Runnable {
             // Używamy nowej klasy do sformatowania powitania
             send(ResponseFormatter.formatWelcome(board));
             sendConfigBoardsize();
+
             // Jeśli przeciwnik jeszcze nie dołączył — poinformuj gracza, że czekamy
             if (opponent == null) {
                 send("OCZEKIWANIE: Oczekiwanie na dołączenie przeciwnika...");
@@ -62,6 +114,11 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    /**
+     * Obsługuje pojedynczą komendę otrzymaną od klienta.
+     *
+     * @param command treść komendy
+     */
     private void handleCommand(String command) {
         try {
 
@@ -87,54 +144,45 @@ public class ClientHandler implements Runnable {
 
             // Obsługa rezygnacji
             if (command.equalsIgnoreCase("resign")) {
-                engine.resign(player);
                 MoveResult resignResult = engine.resign(player);
                 if (opponent != null) {
                     opponent.sendResign(resignResult);
                 }
-                return; // Zakończ obsługę komendy
-            }
-            
-             if (command.equalsIgnoreCase("pass") || command.equals("pas")) {
-            MoveResult result = engine.pass(player);
-            
-            if (result.isOk()) {
-                sendPass(player);
-                if (opponent != null) opponent.sendPass(player);
-            }
-            if (opponent != null) {
-                opponent.sendPass(player);
+                return;
             }
 
-            
-            if (result.isEnd()) {
-                // Oboje gracze spasowali - KONIEC GRY I LICZENIE PUNKTÓW
-                ScoreResult scores = engine.calculateScores();
-                String scoreMessage = ResponseFormatter.formatScores(scores);
-                
-                sendText(scoreMessage);
-                if (opponent != null) {
-                    opponent.sendText(scoreMessage);
+            if (command.equalsIgnoreCase("pass") || command.equals("pas")) {
+                MoveResult result = engine.pass(player);
+
+                if (result.isOk()) {
+                    sendPass(player);
+                    if (opponent != null) opponent.sendPass(player);
                 }
-            } else {
-                notifyPlayers(null, null);
-                ClientHandler current = engine.getCurrentPlayer() == player ? this : opponent;
-                ClientHandler waiting = current == this ? opponent : this;
 
-                current.send("YOUR_TURN");
-                waiting.send("OPPONENT_TURN");
+                if (result.isEnd()) {
+                    // Oboje gracze spasowali - KONIEC GRY I LICZENIE PUNKTÓW
+                    ScoreResult scores = engine.calculateScores();
+                    String scoreMessage = ResponseFormatter.formatScores(scores);
+
+                    sendText(scoreMessage);
+                    if (opponent != null) {
+                        opponent.sendText(scoreMessage);
+                    }
+                } else {
+                    notifyPlayers(null, null);
+                    ClientHandler current = engine.getCurrentPlayer() == player ? this : opponent;
+                    ClientHandler waiting = current == this ? opponent : this;
+
+                    current.send("YOUR_TURN");
+                    waiting.send("OPPONENT_TURN");
+                }
+                return;
             }
-            return;
-        }
 
             // Parsowanie i wykonanie ruchu
             Move move = CommandParser.parseMove(command, this.player);
             MoveResult result = engine.applyMove(move);
-            //Uwaga- ruchy które mogą być invalid
-            //w pewnych przypadkach, np. PASS i MOVE,
-            //wysyłane są tylko jeśli są poprawne.
-            //W przeciwnym wypadku np. rysowalibyśmy
-            //w GUI kamień nawet, gdy ruch był w złej turze
+
             if (result.isOk()) {
                 //Ruch wysyłamy do GUI funkcją sendMove 
                 sendMove(move, result);
@@ -142,9 +190,10 @@ public class ClientHandler implements Runnable {
                     opponent.sendMove(move, result);
                 }
             }
+
             //Funkcją sendText wysyłamy ruch do terminala
             sendText(ResponseFormatter.formatMoveResult(result));
-            
+
             if (result.isOk()) {
                 notifyPlayers(null, null);
                 ClientHandler current = engine.getCurrentPlayer() == player ? this : opponent;
@@ -158,32 +207,28 @@ public class ClientHandler implements Runnable {
         }
     }
 
-
-  
-
+    /**
+     * Wysyła aktualny status gry do obu graczy.
+     */
     private void notifyPlayers(Move move, MoveResult result) {
-           
         String statusMsg = ResponseFormatter.formatStatus(
                 engine.getCurrentPlayer(),
                 engine.getCurrentColor()
         );
         sendText(statusMsg);
 
-        // Wysyłanie do przeciwnika
         if (opponent != null) {
             opponent.sendText(statusMsg);
         }
     }
 
-
     //W NetworkClient zczytujemy pierwszy wyraz z funkcji send,
     //co umożliwi poprawną aktualizację na planszy w GUI
     //w zależności od typu zdarzenia
-     private void sendMove(Move move, MoveResult result) {
+    private void sendMove(Move move, MoveResult result) {
         //jak nie było stawiania kamienia, np. pas lub resign, kończymy funkcję
-        if (result == null) return; 
-        
-        //wysyłanie ruchu
+        if (result == null) return;
+
         send("MOVE " + move.getPosition().col() + " " +
                      move.getPosition().row() + " " +
                      move.getPlayer().getColor());
@@ -209,45 +254,56 @@ public class ClientHandler implements Runnable {
     private void sendText(String message) {
         send("TEXT " + message);
     }
-    
+
+    /**
+     * Wysyła konfigurację rozmiaru planszy do klienta.
+     */
     private void sendConfigBoardsize() {
         send("CONFIG BOARD_SIZE " + board.getSize());
     }
 
+    /**
+     * Obsługuje rozłączenie klienta.
+     */
     private void handleDisconnect() {
         try {
             socket.close();
         } catch (IOException ignored) {}
-        
+
         if (opponent != null) {
             opponent.send("Przeciwnik rozłączył się. Gra zakończona.");
         }
     }
 
-
+    /**
+     * Ustawia przeciwnika dla tego handlera
+     * i inicjuje rozpoczęcie gry.
+     *
+     * @param opponent handler przeciwnika
+     */
     public void setOpponent(ClientHandler opponent) {
         this.opponent = opponent;
         this.gameStarted = true;
         if (opponent != null) {
-            // Ustaw dwustronne powiązanie przeciwników
             opponent.opponent = this;
             opponent.gameStarted = true;
 
-            // Jeśli ustawiono przeciwnika, poinformuj obie strony, że gra może się rozpocząć.
-            // Poczekaj krótko aż PrintWriter 'out' dla obu handlerów zostanie zainicjalizowany
             waitForOut();
             opponent.waitForOut();
 
             send("GAME_START");
             opponent.send("GAME_START");
-            send ("YOUR_TURN");
+            send("YOUR_TURN");
             opponent.send("OPPONENT_TURN");
         }
     }
 
+    /**
+     * Oczekuje na inicjalizację strumienia wyjściowego {@link #out}.
+     */
     private void waitForOut() {
         int waited = 0;
-        while (this.out == null && waited < 5000) { // czekaj maksymalnie 5 sekund
+        while (this.out == null && waited < 5000) {
             try {
                 Thread.sleep(50);
             } catch (InterruptedException ignored) {}
@@ -255,8 +311,11 @@ public class ClientHandler implements Runnable {
         }
     }
 
-
-    
+    /**
+     * Wysyła surową wiadomość tekstową do klienta.
+     *
+     * @param message treść wiadomości
+     */
     public void send(String message) {
         if (out != null) {
             out.println(message);

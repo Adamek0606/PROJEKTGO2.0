@@ -1,12 +1,41 @@
-# PROJEKTGO2.0
-Projekt na studia, gra w go.
-Grę włącza się za pomomcą komend
-Właczenie Serwera
- mvn exec:java
-Właczenie Klientów
+Uruchamianie aplikacji
+
+Do uruchomienia gry wymagane są trzy osobne terminale.
+
+Uruchomienie serwera
+
+mvn exec:java
+
+Uruchomienie klientów (dla każdego gracza osobno)
+
 mvn javafx:run
-W dwóch osobnych terminalach 
-W samej grze mamy 3 opcje 
-  1. Stawianie na planszy za pomocą myszki
-  2. Pass, która aktywuje tryb negocjacji. W tym trybie wybieramy pozycje które według nas są jeńcami. Klikamy Done, gdy wybierzemy juz te pozycje i oczekujemy na przciwnika. Jezeli wybierzemy te same pola co przeciwnik gra konczy sie. W innym przypadku gramy dalej.
-  3. Resign, poddanie sie.
+
+Serwer obsługuje jednocześnie dwóch klientów, którzy rozgrywają jedną partię gry.
+
+Zasady rozgrywki
+
+W trakcie gry dostępne są trzy podstawowe akcje:
+
+1. Stawianie kamieni
+
+Gracze wykonują ruchy poprzez klikanie myszką na planszy. Ruchy są walidowane zgodnie z zasadami gry Go.
+
+2. Pass (pas) – tryb negocjacji
+
+Akcja Pass uruchamia tryb negocjacji martwych grup.
+
+Gracze zaznaczają na planszy kamienie, które uznają za jeńców (martwe grupy).
+Po zakończeniu zaznaczania gracz zatwierdza wybór przyciskiem Done i oczekuje na decyzję przeciwnika.
+
+jeśli obaj gracze wskażą te same pozycje, gra zostaje zakończona i następuje podliczenie punktów
+
+w przypadku braku porozumienia negocjacje zostają anulowane, a gra toczy się dalej.
+
+3. Resign (poddanie się)
+
+Gracz może w dowolnym momencie poddać partię. Rezygnacja natychmiast kończy grę i przyznaje zwycięstwo przeciwnikowi.
+
+
+Maven
+
+Architektura klient–serwer (Socket)

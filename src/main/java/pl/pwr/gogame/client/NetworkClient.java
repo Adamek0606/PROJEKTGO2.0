@@ -6,7 +6,13 @@ import java.net.Socket;
 import java.util.Scanner;
 
 import javafx.application.Platform;
-import javafx.scene.control.TextArea;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 import pl.pwr.gogame.client.view.BoardCanvas;
 import pl.pwr.gogame.client.view.GameView;
 import pl.pwr.gogame.model.StoneColor;
@@ -39,6 +45,73 @@ public class NetworkClient {
         }
     }
 
+    private void showBoardSizeDialog() {
+        Stage dialog = new Stage();
+        dialog.initModality(Modality.APPLICATION_MODAL);
+        dialog.setTitle("Wybierz rozmiar planszy");
+
+        Label label = new Label("Wybierz rozmiar planszy dla gry (tylko pierwszy gracz):");
+
+        Button b9 = new Button("9 x 9");
+        Button b13 = new Button("13 x 13");
+        Button b19 = new Button("19 x 19");
+
+        b9.setOnAction(e -> {
+            send("SET_BOARD_SIZE 9");
+            b9.setDisable(true);
+            b13.setDisable(true);
+            b19.setDisable(true);
+            dialog.close();
+        });
+        b13.setOnAction(e -> {
+            send("SET_BOARD_SIZE 13");
+            b9.setDisable(true);
+            b13.setDisable(true);
+            b19.setDisable(true);
+            dialog.close();
+        });
+        b19.setOnAction(e -> {
+            send("SET_BOARD_SIZE 19");
+            b9.setDisable(true);
+            b13.setDisable(true);
+            b19.setDisable(true);
+            dialog.close();
+        });
+
+        HBox buttons = new HBox(12);
+        buttons.setSpacing(12);
+        buttons.setStyle("-fx-alignment: center;");
+        buttons.getChildren().addAll(b9, b13, b19);
+
+        VBox root = new VBox(16, label, buttons);
+        root.setPadding(new javafx.geometry.Insets(14));
+        root.setStyle("-fx-alignment: center;");
+
+        Scene scene = new Scene(root, 520, 220);
+
+        // make buttons large and square-ish, scaling with dialog size
+        b9.setStyle("-fx-font-size: 18px;");
+        b13.setStyle("-fx-font-size: 18px;");
+        b19.setStyle("-fx-font-size: 18px;");
+
+        b9.prefWidthProperty().bind(scene.widthProperty().multiply(0.28));
+        b13.prefWidthProperty().bind(scene.widthProperty().multiply(0.28));
+        b19.prefWidthProperty().bind(scene.widthProperty().multiply(0.28));
+
+        b9.prefHeightProperty().bind(scene.heightProperty().multiply(0.5));
+        b13.prefHeightProperty().bind(scene.heightProperty().multiply(0.5));
+        b19.prefHeightProperty().bind(scene.heightProperty().multiply(0.5));
+
+        b9.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        b13.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        b19.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+
+        dialog.setScene(scene);
+        dialog.setMinWidth(420);
+        dialog.setMinHeight(180);
+        dialog.showAndWait();
+    }
+
     private void listen(Socket socket) {
     try (Scanner in = new Scanner(socket.getInputStream())) {
 
@@ -46,6 +119,22 @@ public class NetworkClient {
         while (in.hasNextLine()) {
             String msg = in.nextLine();
             System.out.println("SERVER: " + msg);
+
+            // Jeśli w dowolnym komunikacie pojawia się informacja o zakończeniu gry,
+            // zablokuj przycisk 'Resign' (użytkownik nie może się poddać po zakończeniu gry).
+            if (msg.toLowerCase().contains("koniec gry") || msg.toLowerCase().contains("koniec")) {
+                Platform.runLater(() -> {
+                    try {
+                        view.getResignButton().setDisable(true);
+                    } catch (Exception ignored) {}
+                });
+            }
+
+            if (msg.equals("REQUEST_BOARD_SIZE")) {
+                // show modal dialog to choose board size (only first client receives this)
+                Platform.runLater(() -> showBoardSizeDialog());
+                continue;
+            }
 
             // W zależności od typu zdarzenia wywoływane są
             // dane metody
@@ -112,14 +201,27 @@ public class NetworkClient {
                 //wpisywanie pasu do logów
                 log("Przeciwnik zpasował.");
             } else if (msg.startsWith("RESIGN")) {
-                // update board/log
                  String[] parts = msg.split(" ");
                 log("Koniec gry. Wygrał: " + parts[2]);
+                Platform.runLater(() -> {
+                    try {
+                        view.getResignButton().setDisable(true);
+                    } catch (Exception ignored) {}
+                });
             } else if (msg.startsWith("TEXT")) {
                 //Wiadomości są schematu: "TEXT: info",
                 //więc do logów wpisujemy samo info
                 //i usuwamy keyword "TEXT" z początku wiadomości
-                 log(msg.substring(5));
+                 String text = msg.substring(5);
+                 log(text);
+                 if (text.contains("Koniec gry")  || text.contains("Gra zakończona")) {
+                     Platform.runLater(() -> {
+                         try {
+                             view.getResignButton().setDisable(true);
+                             view.getPassButton().setDisable(true);
+                         } catch (Exception ignored) {}
+                     });
+                 }
             }
         }
     } catch (IOException e) {

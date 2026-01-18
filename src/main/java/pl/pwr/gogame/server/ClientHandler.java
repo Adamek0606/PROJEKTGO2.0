@@ -25,6 +25,8 @@ public class ClientHandler implements Runnable {
 
     //potrzebna flaga by pierwszy gracz nie mógł robić ruchów zanim drugi nie dołączy 
     boolean gameStarted = false;
+    // flaga zapobiegająca wielokrotnemu wysyłaniu komunikatu o zakończeniu gry
+    private boolean gameEndNotified = false;
 
     public ClientHandler(Socket socket, GameEngine engine, GamePlayer player, Board board) {
         this.socket = socket;
@@ -62,6 +64,19 @@ public class ClientHandler implements Runnable {
 
     private void handleCommand(String command) {
         try {
+
+            // Jeśli silnik zgłasza koniec gry, blokujemy wszystkie dalsze komendy
+            if (engine.isEnd()) {
+                // Wyślij komunikat o zakończeniu gry tylko raz na klienta
+                if (!gameEndNotified) {
+                    sendText("Gra zakończona.");
+                    if (opponent != null) {
+                        opponent.sendText("Gra zakończona.");
+                    }
+                    gameEndNotified = true;
+                }
+                return;
+            }
 
             if (!gameStarted) {
                 sendText("Gra jeszcze się nie rozpoczęła. Oczekiwanie na przeciwnika.");
@@ -205,7 +220,7 @@ public class ClientHandler implements Runnable {
         } catch (IOException ignored) {}
         
         if (opponent != null) {
-            opponent.send("Przeciwnik rozłączył się. Koniec gry.");
+            opponent.send("Przeciwnik rozłączył się. Gra zakończona.");
         }
     }
 
@@ -213,19 +228,30 @@ public class ClientHandler implements Runnable {
     public void setOpponent(ClientHandler opponent) {
         this.opponent = opponent;
         this.gameStarted = true;
-        opponent.gameStarted = true;
-
-        // Jeśli ustawiono przeciwnika, poinformuj obie strony, że gra może się rozpocząć
         if (opponent != null) {
+            // Ustaw dwustronne powiązanie przeciwników
+            opponent.opponent = this;
+            opponent.gameStarted = true;
+
+            // Jeśli ustawiono przeciwnika, poinformuj obie strony, że gra może się rozpocząć.
+            // Poczekaj krótko aż PrintWriter 'out' dla obu handlerów zostanie zainicjalizowany
+            waitForOut();
+            opponent.waitForOut();
+
             send("GAME_START");
             opponent.send("GAME_START");
-            if (engine.getCurrentPlayer() == player) {
-                send("YOUR_TURN");
-                opponent.send("OPPONENT_TURN");
-            } else {
-                send("OPPONENT_TURN");
-                opponent.send("YOUR_TURN");
-            }
+            send ("YOUR_TURN");
+            opponent.send("OPPONENT_TURN");
+        }
+    }
+
+    private void waitForOut() {
+        int waited = 0;
+        while (this.out == null && waited < 5000) { // czekaj maksymalnie 5 sekund
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException ignored) {}
+            waited += 50;
         }
     }
 

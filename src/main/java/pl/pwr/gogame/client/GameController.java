@@ -15,35 +15,34 @@ public class GameController {
         view, this
     );
 
-     view.getInputField().setOnAction(e -> {
-        client.send(view.getInputField().getText());
-        view.getInputField().clear();
-    });
     
+    // pass and resign buttons
+    view.getPassButton().setOnAction(e -> {
+        client.send("pass");
+    });
 
+    view.getResignButton().setOnAction(e -> {
+        client.send("resign");
+    });
 }
-
-    private void initHandlers() {
-        view.getBoardCanvas().setOnMouseClicked(e -> {
-            int col = (int) ((e.getX() - 20) / 40);
-            int row = (int) ((e.getY() - 20) / 40);
-            client.send(col + " " + row);
-
-
-        });
-
-        view.getInputField().setOnAction(e -> {
-            client.send(view.getInputField().getText());
-            view.getInputField().clear();
-        });
-    }
-
     public void registerBoardHandlers() {
         BoardCanvas board = view.getBoardCanvas();
-
         board.setOnMouseClicked(e -> {
-            int col = (int) ((e.getX() - 20) / 40);
-            int row = (int) ((e.getY() - 20) / 40);
+            int size = board.getSize();
+            double cellWidth = board.getWidth() / size;
+            double cellHeight = board.getHeight() / size;
+            double offsetX = cellWidth / 2.0;
+            double offsetY = cellHeight / 2.0;
+
+            double relX = e.getX() - offsetX;
+            double relY = e.getY() - offsetY;
+
+            int col = (int) Math.round(relX / cellWidth);
+            int row = (int) Math.round(relY / cellHeight);
+
+            col = Math.max(0, Math.min(size - 1, col));
+            row = Math.max(0, Math.min(size - 1, row));
+
             client.send(col + " " + row);
         });
     }

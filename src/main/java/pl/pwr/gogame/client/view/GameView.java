@@ -1,28 +1,34 @@
 package pl.pwr.gogame.client.view;
 
+import javafx.geometry.Insets;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
 
 public class GameView {
     int boardsize;
     private BorderPane root = new BorderPane();
     private BoardCanvas boardCanvas;
     private TextArea logArea = new TextArea();
-    private TextField inputField = new TextField();
+    private Button passButton = new Button("Pass");
+    private Button resignButton = new Button("Resign");
 
     public GameView() {
         logArea.setEditable(false);
         logArea.setPrefHeight(200);
 
-        root.setBottom(inputField);
-        root.setTop(logArea);
+    HBox bottom = new HBox(8);
+    bottom.setPadding(new Insets(6));
+    bottom.getChildren().addAll(passButton, resignButton);
+
+    root.setBottom(bottom);
+    root.setTop(logArea);
 
     }
 
-    //gettersy
+    //getters
     public Parent getRoot() {
         return root;
     }
@@ -35,8 +41,12 @@ public class GameView {
         return logArea;
     }
 
-    public TextField getInputField() {
-        return inputField;
+    public Button getPassButton() {
+        return passButton;
+    }
+
+    public Button getResignButton() {
+        return resignButton;
     }
 
     public void createBoard(int size) {
@@ -46,5 +56,4 @@ public class GameView {
         root.setCenter(board);
     }
 
-    
 }

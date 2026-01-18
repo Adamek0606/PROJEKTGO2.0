@@ -31,6 +31,11 @@ public class BoardCanvas extends Canvas {
         drawEmptyBoard();
     }
 
+    // expose size so controllers can map mouse coordinates to intersections
+    public int getSize() {
+        return size;
+    }
+
 
     public void drawEmptyBoard() {
         //każda kanwa z Canvas ma przydzielony obiekt GraphicsContext,

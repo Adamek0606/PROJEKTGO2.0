@@ -3,6 +3,11 @@ package pl.pwr.gogame.model;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Collections;
+
+import pl.pwr.gogame.model.GamePhase;
 
 import pl.pwr.gogame.service.BoardService;
 import pl.pwr.gogame.service.GameEngineService;
@@ -70,6 +75,18 @@ public class GameEngine {
      */
     private boolean end = false;
 
+    // --- negocjacja martwych grup ---
+    /** Faza gry: PLAYING, NEGOTIATION, FINISHED */
+    private GamePhase phase = GamePhase.PLAYING;
+
+    /** Dla każdego gracza: pozycje oznaczone w fazie negocjacji */
+    private final Map<GamePlayer, Set<Position>> negotiationMarks = new HashMap<>();
+
+    /** Gracze, którzy zakończyli oznaczanie w negocjacji */
+    private final Set<GamePlayer> negotiationDone = new HashSet<>();
+    /** Wynik ostatniej negocjacji (true jeśli obie strony się zgodziły) */
+    private boolean lastNegotiationSucceeded = false;
+
     //serwisy
 
     /**
@@ -93,6 +110,84 @@ public class GameEngine {
         this.GameEngineService = new GameEngineService(this.boardService);
         this.currentPlayer = null;
     }
+
+    // --- negocjacja martwych grup: API ---
+    /** Zwraca aktualną fazę gry */
+    public synchronized GamePhase getPhase() { return phase; }
+
+    /** Rozpoczyna fazę negocjacji (po podwójnym pasie) */
+    public synchronized void startNegotiation() {
+        phase = GamePhase.NEGOTIATION;
+        negotiationMarks.clear();
+        negotiationDone.clear();
+    }
+
+    /** Gracz oznacza pozycję/grupę jako potencjalnie martwą (w trakcie negocjacji) */
+    public synchronized void markNegotiationPosition(GamePlayer player, Position pos) {
+        negotiationMarks.computeIfAbsent(player, k -> new HashSet<>()).add(pos);
+    }
+
+    /** Gracz kończy oznaczanie; gdy obaj gracze skończą, stosujemy uzgodnione rezultaty */
+    /**
+     * Oznacza, że dany gracz zakończył fazę negocjacji.
+     * Zwraca true jeśli po tym wywołaniu obie strony zakończyły negocjację
+     * (wtedy wyniki negocjacji zostaną zastosowane), w przeciwnym wypadku false.
+     */
+    public synchronized boolean finishNegotiationFor(GamePlayer player) {
+        negotiationDone.add(player);
+        if (negotiationDone.contains(blackPlayer) && negotiationDone.contains(whitePlayer)) {
+            applyNegotiationResults();
+            return true;
+        }
+        return false;
+    }
+
+    /** Wykonuje usunięcie grup, które zostały oznaczone przez obie strony (consensus) */
+    private void applyNegotiationResults() {
+        Set<Position> blackMarks = negotiationMarks.getOrDefault(blackPlayer, Collections.emptySet());
+        Set<Position> whiteMarks = negotiationMarks.getOrDefault(whitePlayer, Collections.emptySet());
+
+        // jeśli obie strony oznaczyły dokładnie te same pozycje -> kontynuujemy usuwanie
+        if (blackMarks.equals(whiteMarks)) {
+            Set<Position> agreed = new HashSet<>(blackMarks);
+
+            // Usuń dokładnie te pozycje, które zostały uzgodnione — pojedynczo ustawiając je jako EMPTY
+            // i zliczaj usunięte kamienie, aby zaktualizować liczniki zbitych.
+            Set<Position> removed = new HashSet<>();
+            int removedByBlack = 0;
+            int removedByWhite = 0;
+            for (Position p : agreed) {
+                if (removed.contains(p)) continue;
+                if (board.isOutOfBounds(p)) continue;
+                StoneColor s = board.getStone(p);
+                if (s == StoneColor.EMPTY) continue;
+                // ustaw pole jako puste
+                board.removeStone(p);
+                removed.add(p);
+                // zliczaj w zależności od koloru usuniętego kamienia
+                if (s == StoneColor.WHITE) removedByBlack++;
+                else if (s == StoneColor.BLACK) removedByWhite++;
+            }
+
+            if (removedByBlack > 0) updateCaptureCounts(StoneColor.BLACK, removedByBlack);
+            if (removedByWhite > 0) updateCaptureCounts(StoneColor.WHITE, removedByWhite);
+
+            // Zakończ grę — negocjacja zakończona sukcesem.
+            this.end = true;
+            this.phase = GamePhase.FINISHED;
+            this.lastNegotiationSucceeded = true;
+        } else {
+            // negocjacja nie przyniosła konsensusu -> gra trwa dalej
+            this.lastNegotiationSucceeded = false;
+            this.phase = GamePhase.PLAYING;
+            this.negotiationMarks.clear();
+            this.negotiationDone.clear();
+            // resetujemy flagę pasów, tak by gra mogła być kontynuowana normalnie
+            this.lastMoveWasPass = false;
+        }
+    }
+
+    public synchronized boolean getLastNegotiationSucceeded() { return lastNegotiationSucceeded; }
 
     //metody fasady 
 

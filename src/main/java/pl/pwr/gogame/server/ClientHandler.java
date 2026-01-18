@@ -142,6 +142,62 @@ public class ClientHandler implements Runnable {
 
             command = command.trim();
 
+            // negocjacja: oznaczanie pól/grup jako martwe
+            if (command.toUpperCase().startsWith("NEGOTIATE_MARK")) {
+                // format: NEGOTIATE_MARK col row
+                String[] parts = command.split("\\s+");
+                if (parts.length >= 3) {
+                    try {
+                        int col = Integer.parseInt(parts[1]);
+                        int row = Integer.parseInt(parts[2]);
+                        Position pos = new Position(col, row);
+                        engine.markNegotiationPosition(player, pos);
+                        // send raw protocol notifications so client can react to them directly
+                        send("NEGOTATE_MARKED " + col + " " + row);
+                        if (opponent != null) opponent.send("OPPONENT_NEGOTATE_MARKED " + col + " " + row);
+                    } catch (NumberFormatException ex) {
+                        sendText("BŁĄD: niepoprawne współrzędne negocjacji");
+                    }
+                } else {
+                    sendText("BŁĄD: NEGOTIATE_MARK wymaga dwóch argumentów: kolumna wiersz");
+                }
+                return;
+            }
+
+            if (command.equalsIgnoreCase("NEGOTIATE_DONE")) {
+                // gracz zakończył oznaczanie; sprawdź czy obie strony już skończyły
+                boolean finished = engine.finishNegotiationFor(player);
+                if (!finished) {
+                    // czekamy na drugiego gracza - używamy raw protocol notifications
+                    send("NEGOTIATE_WAITING Oczekiwanie na propozycję przeciwnika...");
+                    if (opponent != null) opponent.send("OPPONENT_FINISHED_MARKING");
+                    return;
+                }
+
+                // obie strony zakończyły oznaczanie - teraz silnik zastosował wyniki albo zdecydował o kontynuacji
+                send("NEGOTIATE_DONE_ACK");
+                if (opponent != null) opponent.send("OPPONENT_NEGOTIATE_DONE");
+
+                if (engine.getPhase() == pl.pwr.gogame.model.GamePhase.FINISHED && engine.isEnd()) {
+                    // negocjacja zakończona sukcesem - policz wynik
+                    ScoreResult scores = engine.calculateScores();
+                    String scoreMessage = ResponseFormatter.formatScores(scores);
+                    sendText(scoreMessage);
+                    if (opponent != null) opponent.sendText(scoreMessage);
+                } else if (!engine.getLastNegotiationSucceeded()) {
+                    // negocjacje nie przyniosły konsensusu - kontynuujemy grę
+                    sendText("NEGOTIATION_FAILED: Brak zgody, gra trwa dalej.");
+                    if (opponent != null) opponent.sendText("NEGOTIATION_FAILED: Brak zgody, gra trwa dalej.");
+
+                    // Powiadom o turze - przywróć normalny przepływ tur
+                    ClientHandler current = engine.getCurrentPlayer() == player ? this : opponent;
+                    ClientHandler waiting = current == this ? opponent : this;
+                    if (current != null) current.send("YOUR_TURN");
+                    if (waiting != null) waiting.send("OPPONENT_TURN");
+                }
+                return;
+            }
+
             // Obsługa rezygnacji
             if (command.equalsIgnoreCase("resign")) {
                 MoveResult resignResult = engine.resign(player);
@@ -158,8 +214,11 @@ public class ClientHandler implements Runnable {
                     sendPass(player);
                     if (opponent != null) opponent.sendPass(player);
                 }
-
-                if (result.isEnd()) {
+                // Jeśli pass uruchomił negocjację
+                if (result.isNegotiation()) {
+                    send("NEGOTIATE_START");
+                    if (opponent != null) opponent.send("NEGOTIATE_START");
+                } else if (result.isEnd()) {
                     // Oboje gracze spasowali - KONIEC GRY I LICZENIE PUNKTÓW
                     ScoreResult scores = engine.calculateScores();
                     String scoreMessage = ResponseFormatter.formatScores(scores);
@@ -321,4 +380,4 @@ public class ClientHandler implements Runnable {
             out.println(message);
         }
     }
-}
+} 

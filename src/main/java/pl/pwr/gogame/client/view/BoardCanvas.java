@@ -39,6 +39,8 @@ public class BoardCanvas extends Canvas {
     //ponieważ sam obiekt klasy GraphicsContext nie przechowuje historii
     //wywołanych metod i "nie wie", gdzie narysowaliśmy wcześniej kamień
     private final Map<String, StoneColor> stones = new HashMap<>();
+    // marks used during negotiation: key -> "col,row"; value -> true for local player's mark, false for opponent's mark
+    private final Map<String, Boolean> negotiationMarks = new HashMap<>();
 
     /**
      * Tworzy nową kanwę planszy o zadanym rozmiarze.
@@ -56,6 +58,47 @@ public class BoardCanvas extends Canvas {
         heightProperty().addListener(evt -> redraw());
 
         drawEmptyBoard();
+    }
+
+    /**
+     * Zwraca kolor kamienia na danej pozycji lub null jeśli pole puste.
+     */
+    public StoneColor getStoneAt(int col, int row) {
+        return stones.get(col + "," + row);
+    }
+
+    /**
+     * Zwraca listę pozycji (col,row) należących do grupy kamieni zawierającej podaną pozycję.
+     * Używane po stronie GUI do zaznaczania całej grupy podczas negocjacji.
+     * Zwracane pozycje są w formacie tablicy [col,row].
+     */
+    public java.util.List<int[]> getGroupPositions(int col, int row) {
+        java.util.List<int[]> result = new java.util.ArrayList<>();
+        StoneColor color = getStoneAt(col, row);
+        if (color == null) return result;
+
+        java.util.Set<String> visited = new java.util.HashSet<>();
+        java.util.Deque<int[]> stack = new java.util.ArrayDeque<>();
+        stack.push(new int[]{col, row});
+
+        while (!stack.isEmpty()) {
+            int[] p = stack.pop();
+            String key = p[0] + "," + p[1];
+            if (visited.contains(key)) continue;
+            visited.add(key);
+
+            StoneColor s = getStoneAt(p[0], p[1]);
+            if (s == null || s != color) continue;
+            result.add(new int[]{p[0], p[1]});
+
+            // neighbors: up/down/left/right
+            if (p[0] - 1 >= 0) stack.push(new int[]{p[0] - 1, p[1]});
+            if (p[0] + 1 < size) stack.push(new int[]{p[0] + 1, p[1]});
+            if (p[1] - 1 >= 0) stack.push(new int[]{p[0], p[1] - 1});
+            if (p[1] + 1 < size) stack.push(new int[]{p[0], p[1] + 1});
+        }
+
+        return result;
     }
 
     /**
@@ -83,7 +126,10 @@ public class BoardCanvas extends Canvas {
         //czyścimy kanwę
         gc.clearRect(0, 0, getWidth(), getHeight());
 
-        //rysujemy planszę- linie horyzontalne i wertykalne
+    //rysujemy planszę- linie horyzontalne i wertykalne
+    // upewnij się, że kolor i grubość linii są ustawione niezależnie od poprzednich rysowań
+    gc.setStroke(Color.BLACK);
+    gc.setLineWidth(1.0);
         double w = getWidth();
         double h = getHeight();
 
@@ -127,6 +173,29 @@ public class BoardCanvas extends Canvas {
     }
 
     /**
+     * Add a negotiation mark (X) on the given intersection.
+     * @param col column
+     * @param row row
+     * @param local true if marked by local player, false if by opponent
+     */
+    public void addNegotiationMark(int col, int row, boolean local) {
+        negotiationMarks.put(col + "," + row, local);
+        redraw();
+    }
+
+    /** Remove a negotiation mark (if present). */
+    public void removeNegotiationMark(int col, int row) {
+        negotiationMarks.remove(col + "," + row);
+        redraw();
+    }
+
+    /** Remove all negotiation marks. */
+    public void clearNegotiationMarks() {
+        negotiationMarks.clear();
+        redraw();
+    }
+
+    /**
      * Przerysowuje całą planszę wraz z aktualnie umieszczonymi kamieniami.
      * Metoda ta jest wywoływana po każdej zmianie stanu planszy
      * (dodanie lub usunięcie kamienia).
@@ -154,6 +223,30 @@ public class BoardCanvas extends Canvas {
             double y = row * cellHeight + cellHeight / 2 - stoneDiameter / 2;
 
             gc.fillOval(x, y, stoneDiameter, stoneDiameter);
+        }
+
+    for (Map.Entry<String, Boolean> m : negotiationMarks.entrySet()) {
+            String[] parts = m.getKey().split(",");
+            int col = Integer.parseInt(parts[0]);
+            int row = Integer.parseInt(parts[1]);
+
+            double x = col * cellWidth + cellWidth / 2;
+            double y = row * cellHeight + cellHeight / 2;
+
+            Color markColor = m.getValue() ? Color.rgb(200, 0, 0, 1.0) : Color.rgb(255, 140, 0, 1.0);
+            gc.setStroke(markColor);
+            double lineWidth = Math.max(2.0, Math.min(cellWidth, cellHeight) * 0.06);
+            gc.setLineWidth(lineWidth);
+
+            gc.setLineCap(javafx.scene.shape.StrokeLineCap.ROUND);
+
+            double markSize = Math.min(cellWidth, cellHeight) * 0.6;
+            double x1 = x - markSize / 2;
+            double y1 = y - markSize / 2;
+            double x2 = x + markSize / 2;
+            double y2 = y + markSize / 2;
+            gc.strokeLine(x1, y1, x2, y2);
+            gc.strokeLine(x1, y2, x2, y1);
         }
     }
 }

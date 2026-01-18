@@ -119,8 +119,9 @@ public class GameEngineService {
         engine.setPreviousBoardSnapshot(null);
 
         if (engine.getLastMoveWasPass()) {
-            engine.setEnd(true);
-            return MoveResult.passEnd();
+            // zamiast od razu kończyć grę, przejdź do fazy negocjacji
+            engine.startNegotiation();
+            return MoveResult.negotiationStart();
         } else {
             engine.setLastMoveWasPass(true);
             engine.changePlayers();

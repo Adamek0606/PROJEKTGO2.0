@@ -39,6 +39,11 @@ public class MoveResult {
     private final boolean end;
 
     /**
+     * Informacja, czy uruchomiono fazę negocjacji (po podwójnym pasie).
+     */
+    private final boolean negotiation;
+
+    /**
      * Informacja, czy któryś z graczy zrezygnował z gry.
      */
     private final boolean resigned;
@@ -67,6 +72,7 @@ public class MoveResult {
      */
     public MoveResult(boolean ok, String errorMessage, List<Position> capturedPositions,
                       boolean passed, boolean end, boolean resigned,
+                      boolean negotiation,
                       GamePlayer winner, GamePlayer loser) {
         this.ok = ok;
         this.capturedPositions = capturedPositions != null ? capturedPositions : new ArrayList<>();
@@ -76,6 +82,7 @@ public class MoveResult {
         this.resigned = resigned;
         this.winner = winner;
         this.loser = loser;
+        this.negotiation = negotiation;
     }
 
     /**
@@ -85,8 +92,8 @@ public class MoveResult {
      * @return poprawny wynik ruchu
      */
     public static MoveResult ok(List<Position> capturedPositions) {
-        return new MoveResult(true, null, capturedPositions,
-                false, false, false, null, null);
+    return new MoveResult(true, null, capturedPositions,
+        false, false, false, false, null, null);
     }
 
     //pierwszy gracz zrobił pass
@@ -97,8 +104,8 @@ public class MoveResult {
      * @return wynik ruchu typu pass
      */
     public static MoveResult passNext() {
-        return new MoveResult(true, null, null,
-                true, false, false, null, null);
+    return new MoveResult(true, null, null,
+        true, false, false, false, null, null);
     }
 
     //obojga graczy zrobiło pass
@@ -110,8 +117,8 @@ public class MoveResult {
      * @return wynik kończący grę
      */
     public static MoveResult passEnd() {
-        return new MoveResult(true, null, null,
-                true, true, false, null, null);
+    return new MoveResult(true, null, null,
+        true, true, false, false, null, null);
     }
 
     /**
@@ -122,8 +129,8 @@ public class MoveResult {
      * @return wynik rezygnacji
      */
     public static MoveResult resign(GamePlayer loser, GamePlayer winner) {
-        return new MoveResult(false, null, null,
-                false, true, true, winner, loser);
+    return new MoveResult(false, null, null,
+        false, true, true, false, winner, loser);
     }
 
     /**
@@ -133,8 +140,16 @@ public class MoveResult {
      * @return wynik błędu
      */
     public static MoveResult error(String message) {
-        return new MoveResult(false, message, Collections.emptyList(),
-                false, false, false, null, null);
+    return new MoveResult(false, message, Collections.emptyList(),
+        false, false, false, false, null, null);
+    }
+
+    /**
+     * Tworzy wynik informujący o rozpoczęciu fazy negocjacji po podwójnym pasie.
+     */
+    public static MoveResult negotiationStart() {
+    return new MoveResult(true, null, null,
+        true, false, false, true, null, null);
     }
 
     /**
@@ -171,6 +186,9 @@ public class MoveResult {
      * @return {@code true} jeśli gra się zakończyła
      */
     public boolean isEnd() { return end; }
+
+    /** Czy rozpoczęto fazę negocjacji (po podwójnym pasie)? */
+    public boolean isNegotiation() { return negotiation; }
 
     /**
      * Informuje, czy ruch zakończył się rezygnacją.

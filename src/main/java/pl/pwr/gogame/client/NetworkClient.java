@@ -179,18 +179,65 @@ public class NetworkClient {
                     log("Gra się rozpoczęła.");
                 }
 
-                if (msg.equals("YOUR_TURN")) {
+                // negocjacje: serwer uruchamia fazę negocjacji
+                if (msg.equals("NEGOTIATE_START")) {
+                    log("Negocjacja martwych grup: zaznacz na planszy kamienie i kliknij Done");
                     Platform.runLater(() -> {
-                        view.getBoardCanvas().setDisable(false);
-                        log("Twój ruch.");
+                        view.getNegotiateDoneButton().setVisible(true);
+                        view.getNegotiateDoneButton().setDisable(false);
+                        controller.setNegotiationMode(true);
                     });
+                    continue;
+                }
+
+                if (msg.startsWith("NEGOTATE_MARKED")) {
+                    // ack for local mark
+                    continue;
+                }
+
+                if (msg.startsWith("OPPONENT_NEGOTATE_MARKED")) {
+                    // Do not draw opponent's negotiation marks locally — just log it.
+                    String[] parts = msg.split(" ");
+                    if (parts.length >= 3) {
+                        int col = Integer.parseInt(parts[1]);
+                        int row = Integer.parseInt(parts[2]);
+                        log("Przeciwnik oznaczył pozycję: " + col + "," + row);
+                    }
+                    continue;
+                }
+
+                if (msg.equals("NEGOTIATE_DONE_ACK") || msg.equals("OPPONENT_NEGOTIATE_DONE")) {
+                    Platform.runLater(() -> {
+                        controller.setNegotiationMode(false);
+                        view.getNegotiateDoneButton().setVisible(false);
+                        view.getNegotiateDoneButton().setDisable(true);
+                        log("Negocjacje zakończone.");
+                    });
+                    continue;
+                }
+
+                if (msg.equals("YOUR_TURN")) {
+                    // jeśli jesteśmy w trybie negocjacji, nie nadpisuj stanu planszy
+                    if (controller != null && controller.isNegotiationMode()) {
+                        log("Twój ruch (ignorowany podczas negocjacji)");
+                    } else {
+                        Platform.runLater(() -> {
+                            if (view.getBoardCanvas() != null) view.getBoardCanvas().setMouseTransparent(false);
+                            log("Twój ruch.");
+                        });
+                    }
                 }
 
                 if (msg.equals("OPPONENT_TURN")) {
-                    Platform.runLater(() -> {
-                        view.getBoardCanvas().setDisable(true);
-                        log("Ruch przeciwnika.");
-                    });
+                    // jeśli jesteśmy w trybie negocjacji, nie nadpisuj stanu planszy
+                    if (controller != null && controller.isNegotiationMode()) {
+                        log("Ruch przeciwnika (ignorowany podczas negocjacji)");
+                    } else {
+                        Platform.runLater(() -> {
+                            if (view.getBoardCanvas() != null) view.getBoardCanvas().setMouseTransparent(true);
+                            log("Ruch przeciwnika.");
+                        });
+                    }
                 }
 
                 if (msg.startsWith("CONFIG BOARD_SIZE")) {
@@ -243,17 +290,34 @@ public class NetworkClient {
                     });
                 } else if (msg.startsWith("TEXT")) {
                     //Wiadomości są schematu: "TEXT: info",
-                    //więc do logów wpisujemy samo info
-                    //i usuwamy keyword "TEXT" z początku wiadomości
+                    //usuń prefiks protokołu "TEXT " w miejscach, gdzie pokażemy podsumowanie
                     String text = msg.substring(5);
-                    log(text);
-                    if (text.contains("Koniec gry") || text.contains("Gra zakończona")) {
+                    String cleaned = text.replaceAll("TEXT\\s*", "");
+                    // Jeśli negocjacje nie przyniosły porozumienia, wyczyść oznaczenia i wróć do gry
+                    if (text.startsWith("NEGOTIATION_FAILED") || text.contains("Brak zgody")) {
+                        Platform.runLater(() -> {
+                            controller.setNegotiationMode(false);
+                            view.getNegotiateDoneButton().setVisible(false);
+                            view.getNegotiateDoneButton().setDisable(true);
+                            BoardCanvas board = view.getBoardCanvas();
+                            if (board != null) board.clearNegotiationMarks();
+                        });
+                    }
+                    // Jeśli otrzymujemy końcowe podsumowanie wyników, pokaż je i zablokuj planszę
+                    if (text.toLowerCase().contains("koniec gry") || text.toLowerCase().contains("koniec") || text.contains("KONIEC GRY - PODSUMOWANIE")) {
+                        // zapisz pełne, posprzątane podsumowanie do logów i pokaż dialog
+                        log(cleaned);
                         Platform.runLater(() -> {
                             try {
                                 view.getResignButton().setDisable(true);
                                 view.getPassButton().setDisable(true);
+                                BoardCanvas board = view.getBoardCanvas();
+                                if (board != null) board.setMouseTransparent(true);
                             } catch (Exception ignored) {}
                         });
+                    } else {
+                        // zwykły tekst — loguj oryginalną treść
+                        log(text);
                     }
                 }
             }

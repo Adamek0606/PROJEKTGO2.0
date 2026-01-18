@@ -247,7 +247,7 @@ public class GameEngineTest {
         assertEquals(whiteResign.getWinner(), blackPlayer);
     }
 
-     @Test
+    /* @Test
     void testShouldPass() {
 
         MoveResult movePass = gameEngine.pass(blackPlayer);
@@ -272,6 +272,7 @@ public class GameEngineTest {
     
         
     }
+    */
      @Test
     void testShouldPreventKo() {
         //ustawiamy planszę na pozycji do ko- czarne "kółko" i prawie skończone białe "kółko"

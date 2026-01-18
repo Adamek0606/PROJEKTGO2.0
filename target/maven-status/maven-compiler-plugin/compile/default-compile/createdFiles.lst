@@ -12,6 +12,7 @@ pl/pwr/gogame/model/GamePlayer.class
 pl/pwr/gogame/service/BoardService.class
 pl/pwr/gogame/model/BoardFactory.class
 pl/pwr/gogame/service/Main.class
+pl/pwr/gogame/model/GamePhase.class
 pl/pwr/gogame/model/Move.class
 pl/pwr/gogame/client/view/GameView.class
 pl/pwr/gogame/model/Position.class

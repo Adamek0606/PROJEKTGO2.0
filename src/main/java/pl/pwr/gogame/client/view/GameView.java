@@ -45,6 +45,11 @@ public class GameView {
     private Button resignButton = new Button("Resign");
 
     /**
+     * Przycisk potwierdzający zakończenie oznaczania podczas negocjacji.
+     */
+    private Button negotiateDoneButton = new Button("Done");
+
+    /**
      * Tworzy nowy widok gry.
      * Inicjalizuje elementy interfejsu użytkownika oraz
      * ustawia ich rozmieszczenie w głównym kontenerze.
@@ -55,7 +60,11 @@ public class GameView {
 
         HBox bottom = new HBox(8);
         bottom.setPadding(new Insets(6));
-        bottom.getChildren().addAll(passButton, resignButton);
+    bottom.getChildren().addAll(passButton, resignButton, negotiateDoneButton);
+
+    // domyślnie przycisk negocjacji ukryty
+    negotiateDoneButton.setVisible(false);
+    negotiateDoneButton.setDisable(true);
 
         root.setBottom(bottom);
         root.setTop(logArea);
@@ -108,6 +117,11 @@ public class GameView {
     }
 
     /**
+     * Zwraca przycisk kończący fazę negocjacji.
+     */
+    public Button getNegotiateDoneButton() { return negotiateDoneButton; }
+
+    /**
      * Tworzy planszę gry o podanym rozmiarze i umieszcza ją
      * w centralnej części widoku.
      *
@@ -115,7 +129,8 @@ public class GameView {
      */
     public void createBoard(int size) {
         BoardCanvas board = new BoardCanvas(size);
-        board.setDisable(true);
+        // keep visual appearance intact; ignore mouse events until server enables interaction
+        board.setMouseTransparent(true);
         this.boardCanvas = board;
         root.setCenter(board);
     }
